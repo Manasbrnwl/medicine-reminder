@@ -47,7 +47,7 @@ A Node.js backend application for medicine reminder management, with features fo
 1. Clone the repository
 
    ```
-   git clone <repository-url>
+   git clone https://github.com/Manasbrnwl/medicine-reminder.git
    cd medicine-reminder
    ```
 
