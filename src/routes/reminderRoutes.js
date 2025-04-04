@@ -20,18 +20,7 @@ const router = express.Router();
 // Protected routes
 router.route("/").get(protect, getReminders).post(protect, createReminder);
 
-router
-  .route("/:id")
-  .get(protect, getReminder)
-  .put(protect, updateReminder)
-  .delete(protect, deleteReminder);
-
-// Reminder status routes
-router.put("/:id/take", protect, markReminderAsTaken);
-router.put("/:id/miss", protect, markReminderAsMissed);
-router.put("/:id/snooze", protect, snoozeReminder);
-
-// Dashboard routes
+// Dashboard routes - placing these BEFORE the /:id routes
 router.get("/dashboard", protect, getDashboardStats);
 router.get(
   "/dashboard/dependent/:dependentId",
@@ -42,5 +31,17 @@ router.get(
 // Dependent routes
 router.get("/dependent/:dependentId", protect, getDependentReminders);
 router.post("/dependent/:dependentId", protect, createReminderForDependent);
+
+// Reminder routes with ID parameter
+router
+  .route("/:id")
+  .get(protect, getReminder)
+  .put(protect, updateReminder)
+  .delete(protect, deleteReminder);
+
+// Reminder status routes
+router.put("/:id/take", protect, markReminderAsTaken);
+router.put("/:id/miss", protect, markReminderAsMissed);
+router.put("/:id/snooze", protect, snoozeReminder);
 
 module.exports = router;

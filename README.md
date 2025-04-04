@@ -39,8 +39,8 @@ A Node.js backend application for medicine reminder management, with features fo
 
 ### Prerequisites
 
-- Node.js (v14 or higher)
-- MongoDB (local or Atlas)
+- Node.js (v22.11.0)
+- MongoDB (Atlas)
 
 ### Installation
 

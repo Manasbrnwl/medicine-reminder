@@ -11,6 +11,11 @@ const {
   formatReminderNotification,
   formatMissedDoseNotification
 } = require("../../utils/notifications");
+const {
+  getCurrentDateTime,
+  subtractHoursToDate,
+  addHoursToDate
+} = require("../default/common");
 
 // @desc    Get all reminders for a user
 // @route   GET /api/reminders
@@ -514,126 +519,61 @@ exports.snoozeReminder = async (req, res) => {
   }
 };
 
-// @desc    Get dashboard stats for user
+// @desc    Get dashboard statistics for a user
 // @route   GET /api/reminders/dashboard
 // @access  Private
 exports.getDashboardStats = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { startDate, endDate } = req.query;
 
-    // Set default date range to last 30 days if not provided
-    const end = endDate ? new Date(endDate) : new Date();
-    const start = startDate ? new Date(startDate) : new Date(end);
-    start.setDate(start.getDate() - 30); // default to last 30 days
-
-    // Query for all reminders in date range
-    const reminders = await Reminder.find({
+    // Get today's reminders
+    const todayReminders = await Reminder.find({
       user: userId,
-      time: { $gte: start, $lte: end }
+      time: {
+        $gte: new Date(getCurrentDateTime()),
+        $lt: new Date(addHoursToDate(24))
+      }
     }).populate("medicine");
 
-    // Calculate stats
-    const total = reminders.length;
-    const taken = reminders.filter((r) => r.status === "taken").length;
-    const missed = reminders.filter((r) => r.status === "missed").length;
-    const pending = reminders.filter((r) => r.status === "pending").length;
-    const snoozed = reminders.filter((r) => r.status === "snoozed").length;
-
-    // Calculate adherence score - 1 point per dose taken
-    const adherenceScore = taken;
-
-    // Calculate adherence rate as percentage
-    const adherenceRate = total > 0 ? (taken / total) * 100 : 0;
-
-    // Get statistics per medicine
-    const medicineMap = {};
-    reminders.forEach((reminder) => {
-      const medId = reminder.medicine?._id.toString();
-      if (!medId) return;
-
-      if (!medicineMap[medId]) {
-        medicineMap[medId] = {
-          id: medId,
-          name: reminder.medicine.name,
-          total: 0,
-          taken: 0,
-          missed: 0,
-          adherenceRate: 0
-        };
+    const upcomingReminders = await Reminder.find({
+      user: userId,
+      time: {
+        $gt: new Date(addHoursToDate(24)),
+        $lte: new Date(addHoursToDate(24 * 7))
       }
+    }).populate("medicine");
 
-      medicineMap[medId].total += 1;
-      if (reminder.status === "taken") {
-        medicineMap[medId].taken += 1;
-      } else if (reminder.status === "missed") {
-        medicineMap[medId].missed += 1;
+    const pastReminders = await Reminder.find({
+      user: userId,
+      time: {
+        $gte: new Date(subtractHoursToDate(30 * 24)),
+        $lt: new Date(getCurrentDateTime())
       }
     });
 
-    // Calculate adherence rate for each medicine
-    Object.values(medicineMap).forEach((med) => {
-      med.adherenceRate = med.total > 0 ? (med.taken / med.total) * 100 : 0;
-    });
+    const total = pastReminders.length;
+    const taken = pastReminders.filter((r) => r.status === "taken").length;
+    const adherenceRate = total > 0 ? (taken / total) * 100 : 100;
 
-    // Get streak info (consecutive days with all doses taken)
-    const dateMap = {};
-    reminders.forEach((reminder) => {
-      const dateStr = reminder.time.toISOString().split("T")[0];
-      if (!dateMap[dateStr]) {
-        dateMap[dateStr] = { total: 0, taken: 0 };
-      }
-      dateMap[dateStr].total += 1;
-      if (reminder.status === "taken") {
-        dateMap[dateStr].taken += 1;
-      }
-    });
-
-    // Calculate current streak
-    let currentStreak = 0;
-    const today = new Date().toISOString().split("T")[0];
-    let checkDate = new Date(today);
-
-    while (true) {
-      const dateStr = checkDate.toISOString().split("T")[0];
-      const dayStats = dateMap[dateStr];
-
-      // If day has no reminders or not all were taken, break
-      if (!dayStats || dayStats.taken < dayStats.total) {
-        break;
-      }
-
-      // If day has reminders and all were taken, increment streak
-      if (dayStats.total > 0 && dayStats.taken === dayStats.total) {
-        currentStreak += 1;
-      }
-
-      // Move to previous day
-      checkDate.setDate(checkDate.getDate() - 1);
-
-      // Stop if we've gone before the start date
-      if (checkDate < start) {
-        break;
-      }
-    }
+    // Get missed reminders for the last 30 days
+    const missedReminders = pastReminders.filter((r) => r.status === "missed");
 
     res.json({
       success: true,
       data: {
-        overview: {
-          totalReminders: total,
-          takenCount: taken,
-          missedCount: missed,
-          pendingCount: pending,
-          snoozedCount: snoozed,
-          adherenceScore, // Points (1 per dose taken)
-          adherenceRate: parseFloat(adherenceRate.toFixed(2)), // Percentage
-          currentStreak // Days
+        todayReminders,
+        upcomingReminders,
+        adherenceStats: {
+          total,
+          taken,
+          missed: missedReminders.length,
+          adherenceRate: Math.round(adherenceRate * 10) / 10
         },
-        medicineStats: Object.values(medicineMap)
+        missedReminders
       }
     });
   } catch (error) {
+    console.log(error);
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -642,13 +582,12 @@ exports.getDashboardStats = async (req, res) => {
   }
 };
 
-// @desc    Get dashboard stats for a dependent
+// @desc    Get dashboard statistics for a dependent
 // @route   GET /api/reminders/dashboard/dependent/:dependentId
 // @access  Private
 exports.getDependentDashboardStats = async (req, res) => {
   try {
     const { dependentId } = req.params;
-    const { startDate, endDate } = req.query;
 
     // Check if the requesting user is the parent of the dependent
     const dependent = await User.findById(dependentId);
@@ -662,123 +601,59 @@ exports.getDependentDashboardStats = async (req, res) => {
     if (dependent.parent.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
-        message: "Not authorized to access this dependent's data"
+        message: "Not authorized to access this dependent's dashboard"
       });
     }
 
-    // Set default date range to last 30 days if not provided
-    const end = endDate ? new Date(endDate) : new Date();
-    const start = startDate ? new Date(startDate) : new Date(end);
-    start.setDate(start.getDate() - 30); // default to last 30 days
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-    // Query for all reminders in date range
-    const reminders = await Reminder.find({
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // Get today's reminders
+    const todayReminders = await Reminder.find({
       user: dependentId,
-      time: { $gte: start, $lte: end }
+      time: { $gte: today, $lt: tomorrow }
     }).populate("medicine");
 
-    // Calculate stats
-    const total = reminders.length;
-    const taken = reminders.filter((r) => r.status === "taken").length;
-    const missed = reminders.filter((r) => r.status === "missed").length;
-    const pending = reminders.filter((r) => r.status === "pending").length;
-    const snoozed = reminders.filter((r) => r.status === "snoozed").length;
+    // Get upcoming reminders (next 7 days excluding today)
+    const nextWeek = new Date(today);
+    nextWeek.setDate(nextWeek.getDate() + 7);
 
-    // Calculate adherence score - 1 point per dose taken
-    const adherenceScore = taken;
+    const upcomingReminders = await Reminder.find({
+      user: dependentId,
+      time: { $gt: tomorrow, $lte: nextWeek }
+    }).populate("medicine");
 
-    // Calculate adherence rate as percentage
-    const adherenceRate = total > 0 ? (taken / total) * 100 : 0;
+    // Calculate adherence rate (last 30 days)
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    // Get statistics per medicine
-    const medicineMap = {};
-    reminders.forEach((reminder) => {
-      const medId = reminder.medicine?._id.toString();
-      if (!medId) return;
-
-      if (!medicineMap[medId]) {
-        medicineMap[medId] = {
-          id: medId,
-          name: reminder.medicine.name,
-          total: 0,
-          taken: 0,
-          missed: 0,
-          adherenceRate: 0
-        };
-      }
-
-      medicineMap[medId].total += 1;
-      if (reminder.status === "taken") {
-        medicineMap[medId].taken += 1;
-      } else if (reminder.status === "missed") {
-        medicineMap[medId].missed += 1;
-      }
+    const pastReminders = await Reminder.find({
+      user: dependentId,
+      time: { $gte: thirtyDaysAgo, $lt: today }
     });
 
-    // Calculate adherence rate for each medicine
-    Object.values(medicineMap).forEach((med) => {
-      med.adherenceRate = med.total > 0 ? (med.taken / med.total) * 100 : 0;
-    });
+    const total = pastReminders.length;
+    const taken = pastReminders.filter((r) => r.status === "taken").length;
+    const adherenceRate = total > 0 ? (taken / total) * 100 : 100;
 
-    // Get streak info (consecutive days with all doses taken)
-    const dateMap = {};
-    reminders.forEach((reminder) => {
-      const dateStr = reminder.time.toISOString().split("T")[0];
-      if (!dateMap[dateStr]) {
-        dateMap[dateStr] = { total: 0, taken: 0 };
-      }
-      dateMap[dateStr].total += 1;
-      if (reminder.status === "taken") {
-        dateMap[dateStr].taken += 1;
-      }
-    });
-
-    // Calculate current streak
-    let currentStreak = 0;
-    const today = new Date().toISOString().split("T")[0];
-    let checkDate = new Date(today);
-
-    while (true) {
-      const dateStr = checkDate.toISOString().split("T")[0];
-      const dayStats = dateMap[dateStr];
-
-      // If day has no reminders or not all were taken, break
-      if (!dayStats || dayStats.taken < dayStats.total) {
-        break;
-      }
-
-      // If day has reminders and all were taken, increment streak
-      if (dayStats.total > 0 && dayStats.taken === dayStats.total) {
-        currentStreak += 1;
-      }
-
-      // Move to previous day
-      checkDate.setDate(checkDate.getDate() - 1);
-
-      // Stop if we've gone before the start date
-      if (checkDate < start) {
-        break;
-      }
-    }
+    // Get missed reminders for the last 30 days
+    const missedReminders = pastReminders.filter((r) => r.status === "missed");
 
     res.json({
       success: true,
       data: {
-        dependent: {
-          id: dependent._id,
-          name: dependent.name
+        todayReminders,
+        upcomingReminders,
+        adherenceStats: {
+          total,
+          taken,
+          missed: missedReminders.length,
+          adherenceRate: Math.round(adherenceRate * 10) / 10
         },
-        overview: {
-          totalReminders: total,
-          takenCount: taken,
-          missedCount: missed,
-          pendingCount: pending,
-          snoozedCount: snoozed,
-          adherenceScore, // Points (1 per dose taken)
-          adherenceRate: parseFloat(adherenceRate.toFixed(2)), // Percentage
-          currentStreak // Days
-        },
-        medicineStats: Object.values(medicineMap)
+        missedReminders
       }
     });
   } catch (error) {
