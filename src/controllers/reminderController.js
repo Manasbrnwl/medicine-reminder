@@ -14,8 +14,10 @@ const {
 const {
   getCurrentDateTime,
   subtractHoursToDate,
-  addHoursToDate
+  addHoursToDate,
+  convertIntoISTTime
 } = require("../default/common");
+const moment = require("moment-timezone");
 
 // @desc    Get all reminders for a user
 // @route   GET /api/reminders
@@ -143,10 +145,28 @@ exports.createReminder = async (req, res) => {
       });
     }
 
+    // Check if reminder time is past medicine end date
+    if (
+      medicine.endDate &&
+      new Date(req.body.time) > new Date(medicine.endDate)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot schedule reminder after medicine end date"
+      });
+    }
+
     // Add user to req.body
     req.body.user = req.user.id;
 
-    const reminder = await Reminder.create(req.body);
+    const reminder = await Reminder.create({
+      user: req.body.user,
+      medicine: req.body.medicine,
+      time: moment.tz(req.body.time, "Asia/Kolkata").toDate(),
+      repeat: req.body.repeat,
+      repeatInterval: req.body.repeatInterval,
+      repeatUnit: req.body.repeatUnit
+    });
 
     // Schedule the reminder notification
     const io = req.app.get("io");
@@ -204,10 +224,28 @@ exports.createReminderForDependent = async (req, res) => {
       });
     }
 
+    // Check if reminder time is past medicine end date
+    if (
+      medicine.endDate &&
+      new Date(req.body.time) > new Date(medicine.endDate)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot schedule reminder after medicine end date"
+      });
+    }
+
     // Add dependent as user to req.body
     req.body.user = dependentId;
 
-    const reminder = await Reminder.create(req.body);
+    const reminder = await Reminder.create({
+      user: req.body.user,
+      medicine: req.body.medicine,
+      time: moment.tz(req.body.time, "Asia/Kolkata").toDate(),
+      repeat: req.body.repeat,
+      repeatInterval: req.body.repeatInterval,
+      repeatUnit: req.body.repeatUnit
+    });
 
     // Schedule the reminder notification
     const io = req.app.get("io");
@@ -331,7 +369,9 @@ exports.deleteReminder = async (req, res) => {
 // @access  Private
 exports.markReminderAsTaken = async (req, res) => {
   try {
-    const reminder = await Reminder.findById(req.params.id);
+    const reminder = await Reminder.findById(req.params.id).populate(
+      "medicine"
+    );
 
     if (!reminder) {
       return res.status(404).json({
@@ -535,6 +575,8 @@ exports.getDashboardStats = async (req, res) => {
       }
     }).populate("medicine");
 
+    console.log(todayReminders)
+
     const upcomingReminders = await Reminder.find({
       user: userId,
       time: {
@@ -543,20 +585,30 @@ exports.getDashboardStats = async (req, res) => {
       }
     }).populate("medicine");
 
+    // Get all reminders from the past 30 days
     const pastReminders = await Reminder.find({
       user: userId,
       time: {
-        $gte: new Date(subtractHoursToDate(30 * 24)),
+        $gte: new Date(subtractHoursToDate(24 * 30)),
         $lt: new Date(getCurrentDateTime())
       }
-    });
+    }).populate("medicine");
 
+    // Get missed reminders in the last 30 days
+    const missedReminders = await Reminder.find({
+      user: userId,
+      time: {
+        $gte: new Date(subtractHoursToDate(24 * 30)),
+        $lt: new Date(getCurrentDateTime())
+      },
+      status: "missed"
+    }).populate("medicine");
+
+    // Calculate adherence stats
     const total = pastReminders.length;
     const taken = pastReminders.filter((r) => r.status === "taken").length;
+    const missed = missedReminders.length;
     const adherenceRate = total > 0 ? (taken / total) * 100 : 100;
-
-    // Get missed reminders for the last 30 days
-    const missedReminders = pastReminders.filter((r) => r.status === "missed");
 
     res.json({
       success: true,
@@ -566,14 +618,13 @@ exports.getDashboardStats = async (req, res) => {
         adherenceStats: {
           total,
           taken,
-          missed: missedReminders.length,
+          missed,
           adherenceRate: Math.round(adherenceRate * 10) / 10
         },
         missedReminders
       }
     });
   } catch (error) {
-    console.log(error);
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -630,17 +681,24 @@ exports.getDependentDashboardStats = async (req, res) => {
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
+    // Get all reminders from the past 30 days
     const pastReminders = await Reminder.find({
       user: dependentId,
       time: { $gte: thirtyDaysAgo, $lt: today }
-    });
+    }).populate("medicine");
 
+    // Get missed reminders in the last 30 days
+    const missedReminders = await Reminder.find({
+      user: dependentId,
+      time: { $gte: thirtyDaysAgo, $lt: today },
+      status: "missed"
+    }).populate("medicine");
+
+    // Calculate adherence stats
     const total = pastReminders.length;
     const taken = pastReminders.filter((r) => r.status === "taken").length;
+    const missed = missedReminders.length;
     const adherenceRate = total > 0 ? (taken / total) * 100 : 100;
-
-    // Get missed reminders for the last 30 days
-    const missedReminders = pastReminders.filter((r) => r.status === "missed");
 
     res.json({
       success: true,
@@ -650,7 +708,7 @@ exports.getDependentDashboardStats = async (req, res) => {
         adherenceStats: {
           total,
           taken,
-          missed: missedReminders.length,
+          missed,
           adherenceRate: Math.round(adherenceRate * 10) / 10
         },
         missedReminders

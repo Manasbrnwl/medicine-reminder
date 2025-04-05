@@ -1,13 +1,24 @@
 const nodemailer = require("nodemailer");
+const { Twilio } = require("twilio");
+require("dotenv").config();
 
 // Configure email transporter
 const transporter = nodemailer.createTransport({
-  service: process.env.EMAIL_SERVICE,
+  service: "gmail",
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   }
 });
+
+// Configure Twilio client
+const twilioClient = new Twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
 
 /**
  * Send email notification
@@ -27,9 +38,14 @@ exports.sendEmailNotification = async (email, subject, text, html) => {
       html
     };
 
-    await transporter.sendMail(mailOptions);
-    console.log(`Email notification sent to ${email}`);
-    return true;
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.error("Email error:", error);
+        return false;
+      }
+      console.log(`Email notification sent to ${email}`);
+      return true;
+    });
   } catch (error) {
     console.error("Email error:", error);
     return false;
@@ -61,11 +77,19 @@ exports.sendPushNotification = (io, userId, data) => {
  * @returns {Promise} - Promise resolved on SMS sent
  */
 exports.sendSMSNotification = async (phoneNumber, message) => {
-  // This is a placeholder for SMS service implementation
-  // You would typically use a service like Twilio, Nexmo, etc.
-
   try {
-    console.log(`SMS would be sent to ${phoneNumber}: ${message}`);
+    // Format phone number to E.164 format if it doesn't start with +
+    const formattedPhoneNumber = phoneNumber.startsWith("+91")
+      ? phoneNumber
+      : `+91${phoneNumber}`;
+
+    const result = await twilioClient.messages.create({
+      body: message,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: formattedPhoneNumber
+    });
+
+    console.log(`SMS sent to ${phoneNumber}. SID: ${result.sid}`);
     return true;
   } catch (error) {
     console.error("SMS error:", error);

@@ -68,6 +68,11 @@ exports.scheduleReminder = async (reminder, io) => {
 
       // Schedule a check for missed dose after 30 minutes
       scheduleMissedDoseCheck(reminder._id, io);
+
+      // Handle recurring reminders
+      if (populatedReminder.repeat !== "none") {
+        await scheduleNextRecurringReminder(populatedReminder, io);
+      }
     });
 
     // Store the job reference
@@ -77,6 +82,91 @@ exports.scheduleReminder = async (reminder, io) => {
   } catch (error) {
     console.error("Error scheduling reminder:", error);
   }
+};
+
+/**
+ * Schedule the next occurrence of a recurring reminder
+ * @param {object} reminder - The current reminder document
+ * @param {object} io - Socket.io instance
+ */
+const scheduleNextRecurringReminder = async (reminder, io) => {
+  try {
+    // Calculate the next occurrence time based on repeat settings
+    const nextTime = calculateNextReminderTime(reminder);
+
+    // Check if medicine has an end date and if next reminder is past that date
+    const medicine = reminder.medicine;
+    if (medicine.endDate && nextTime > new Date(medicine.endDate)) {
+      console.log(
+        `Medicine ${medicine.name} has reached its end date. No more reminders will be scheduled.`
+      );
+      return;
+    }
+
+    // Create a new reminder for the next occurrence
+    const newReminder = new Reminder({
+      medicine: reminder.medicine._id,
+      user: reminder.user._id,
+      time: nextTime,
+      repeat: reminder.repeat,
+      repeatInterval: reminder.repeatInterval,
+      repeatUnit: reminder.repeatUnit
+    });
+
+    // Save the new reminder
+    await newReminder.save();
+
+    // Schedule the new reminder
+    await exports.scheduleReminder(newReminder, io);
+
+    console.log(
+      `Created next recurring reminder for ${nextTime.toLocaleString()}`
+    );
+  } catch (error) {
+    console.error("Error scheduling recurring reminder:", error);
+  }
+};
+
+/**
+ * Calculate the next time for a recurring reminder
+ * @param {object} reminder - The reminder document
+ * @returns {Date} - The next reminder time
+ */
+const calculateNextReminderTime = (reminder) => {
+  const currentTime = new Date(reminder.time);
+  let nextTime = new Date(currentTime);
+
+  switch (reminder.repeat) {
+    case "daily":
+      nextTime.setDate(nextTime.getDate() + 1);
+      break;
+    case "weekly":
+      nextTime.setDate(nextTime.getDate() + 7);
+      break;
+    case "monthly":
+      nextTime.setMonth(nextTime.getMonth() + 1);
+      break;
+    case "custom":
+      if (reminder.repeatInterval && reminder.repeatUnit) {
+        switch (reminder.repeatUnit) {
+          case "hours":
+            nextTime.setHours(nextTime.getHours() + reminder.repeatInterval);
+            break;
+          case "days":
+            nextTime.setDate(nextTime.getDate() + reminder.repeatInterval);
+            break;
+          case "weeks":
+            nextTime.setDate(nextTime.getDate() + reminder.repeatInterval * 7);
+            break;
+          case "months":
+            nextTime.setMonth(nextTime.getMonth() + reminder.repeatInterval);
+            break;
+        }
+      }
+      break;
+  }
+
+  return nextTime;
 };
 
 /**

@@ -15,6 +15,19 @@ function getCurrentDateTime() {
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
 }
 
+function convertIntoISTTime(time) {
+  let now = new Date(time);
+  let istTime = new Date(now.getTime());
+  let year = istTime.getFullYear();
+  let month = String(istTime.getMonth() + 1).padStart(2, "0");
+  let day = String(istTime.getDate()).padStart(2, "0");
+  let hours = String(istTime.getHours()).padStart(2, "0");
+  let minutes = String(istTime.getMinutes()).padStart(2, "0");
+  let seconds = String(istTime.getSeconds()).padStart(2, "0");
+
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+}
+
 function addHoursToDate(hoursToAdd) {
   let now = new Date();
 
@@ -55,6 +68,7 @@ function subtractHoursToDate(hoursToAdd) {
 
 module.exports = {
   getCurrentDateTime,
+  convertIntoISTTime,
   addHoursToDate,
   subtractHoursToDate
 };

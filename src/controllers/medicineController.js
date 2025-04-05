@@ -108,6 +108,21 @@ exports.createMedicine = async (req, res) => {
     // Add user to req.body
     req.body.user = req.user.id;
 
+    // Validate end date if provided
+    if (req.body.endDate) {
+      const startDate = req.body.startDate
+        ? new Date(req.body.startDate)
+        : new Date();
+      const endDate = new Date(req.body.endDate);
+
+      if (endDate <= startDate) {
+        return res.status(400).json({
+          success: false,
+          message: "End date must be after start date"
+        });
+      }
+    }
+
     const medicine = await Medicine.create(req.body);
 
     res.status(201).json({
@@ -149,6 +164,21 @@ exports.createMedicineForDependent = async (req, res) => {
     // Add dependent as user to req.body
     req.body.user = dependentId;
 
+    // Validate end date if provided
+    if (req.body.endDate) {
+      const startDate = req.body.startDate
+        ? new Date(req.body.startDate)
+        : new Date();
+      const endDate = new Date(req.body.endDate);
+
+      if (endDate <= startDate) {
+        return res.status(400).json({
+          success: false,
+          message: "End date must be after start date"
+        });
+      }
+    }
+
     const medicine = await Medicine.create(req.body);
 
     res.status(201).json({
@@ -187,6 +217,23 @@ exports.updateMedicine = async (req, res) => {
         success: false,
         message: "Not authorized to update this medicine"
       });
+    }
+
+    // Validate end date if provided
+    if (req.body.endDate) {
+      const startDate = req.body.startDate
+        ? new Date(req.body.startDate)
+        : medicine.startDate
+        ? new Date(medicine.startDate)
+        : new Date();
+      const endDate = new Date(req.body.endDate);
+
+      if (endDate <= startDate) {
+        return res.status(400).json({
+          success: false,
+          message: "End date must be after start date"
+        });
+      }
     }
 
     medicine = await Medicine.findByIdAndUpdate(req.params.id, req.body, {

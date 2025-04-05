@@ -1,5 +1,6 @@
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
+const { generateAndSaveOTP, verifyOTP } = require("../../utils/otp");
 
 // Generate JWT token
 const generateToken = (id) => {
@@ -304,6 +305,133 @@ exports.getDependents = async (req, res) => {
         email: dependent.email,
         phone: dependent.phone
       }))
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined
+    });
+  }
+};
+
+// @desc    Request OTP via email
+// @route   POST /api/users/request-otp-email
+// @access  Public
+exports.requestOTPViaEmail = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide an email"
+      });
+    }
+
+    const result = await generateAndSaveOTP(email, true);
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        message: result.message
+      });
+    }
+
+    res.json({
+      success: true,
+      message: result.message,
+      data: {
+        userId: result.userId
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined
+    });
+  }
+};
+
+// @desc    Request OTP via phone
+// @route   POST /api/users/request-otp-phone
+// @access  Public
+exports.requestOTPViaPhone = async (req, res) => {
+  try {
+    const { phone } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide a phone number"
+      });
+    }
+
+    const result = await generateAndSaveOTP(phone, false);
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        message: result.message
+      });
+    }
+
+    res.json({
+      success: true,
+      message: result.message,
+      data: {
+        userId: result.userId
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined
+    });
+  }
+};
+
+// @desc    Verify OTP and login
+// @route   POST /api/users/verify-otp
+// @access  Public
+exports.verifyOTPAndLogin = async (req, res) => {
+  try {
+    const { userId, otp } = req.body;
+
+    if (!userId || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide userId and OTP"
+      });
+    }
+
+    const result = await verifyOTP(userId, otp);
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        message: result.message
+      });
+    }
+
+    // OTP verification successful, create token and log user in
+    const user = result.user;
+
+    res.json({
+      success: true,
+      data: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        parent: user.parent,
+        dependents: user.dependents,
+        notificationPreferences: user.notificationPreferences,
+        token: generateToken(user._id)
+      }
     });
   } catch (error) {
     res.status(500).json({

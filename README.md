@@ -34,6 +34,7 @@ A Node.js backend application for medicine reminder management, with features fo
 - JWT for authentication
 - Node-schedule for reminder scheduling
 - Nodemailer for email notifications
+- Twilio for SMS notifications
 
 ## Setup Instructions
 
@@ -41,6 +42,7 @@ A Node.js backend application for medicine reminder management, with features fo
 
 - Node.js (v22.11.0)
 - MongoDB (Atlas)
+- Twilio account (for SMS notifications)
 
 ### Installation
 
@@ -61,6 +63,7 @@ A Node.js backend application for medicine reminder management, with features fo
 
    - Create a `.env` file in the root directory based on the `.env.example` file
    - Set your MongoDB URI, JWT Secret, and email configuration
+   - Add your Twilio credentials (Account SID, Auth Token, and Phone Number)
 
 4. Run the server
 
@@ -70,6 +73,18 @@ A Node.js backend application for medicine reminder management, with features fo
 
    # Production mode
    npm start
+   ```
+
+### Twilio Setup
+
+1. Create a [Twilio account](https://www.twilio.com/try-twilio)
+2. Get your Account SID and Auth Token from the Twilio dashboard
+3. Purchase a Twilio phone number for sending SMS
+4. Add the following to your `.env` file:
+   ```
+   TWILIO_ACCOUNT_SID=your_account_sid
+   TWILIO_AUTH_TOKEN=your_auth_token
+   TWILIO_PHONE_NUMBER=your_twilio_phone_number
    ```
 
 ## API Documentation

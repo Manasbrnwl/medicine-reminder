@@ -56,9 +56,22 @@ const UserSchema = new mongoose.Schema(
         default: false
       }
     },
+    // OTP fields for OTP-based login
+    otp: {
+      type: String,
+      select: false
+    },
+    otpExpiry: {
+      type: Date,
+      select: false
+    },
     createdAt: {
       type: Date,
-      default: Date.now
+      default: () => {
+        const now = new Date();
+        const istOffset = 5.5 * 60 * 60 * 1000;
+        return new Date(now.getTime() + istOffset);
+      }
     }
   },
   {
@@ -69,17 +82,34 @@ const UserSchema = new mongoose.Schema(
 
 // Encrypt password using bcrypt
 UserSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) {
-    next();
+  // Only hash password if it's modified (or new)
+  if (this.isModified("password") && this.password) {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
   }
 
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
+  // Hash OTP if it's modified
+  if (this.isModified("otp") && this.otp) {
+    const salt = await bcrypt.genSalt(10);
+    this.otp = await bcrypt.hash(this.otp, salt);
+  }
+
+  next();
 });
 
 // Match user entered password to hashed password in database
 UserSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
+};
+
+// Match OTP
+UserSchema.methods.matchOTP = async function (enteredOTP) {
+  return await bcrypt.compare(enteredOTP, this.otp);
+};
+
+// Check if OTP is expired
+UserSchema.methods.isOTPExpired = function () {
+  return Date.now() > this.otpExpiry;
 };
 
 // Link a dependent to a parent

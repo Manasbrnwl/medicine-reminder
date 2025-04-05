@@ -6,7 +6,10 @@ const {
   updateUserProfile,
   linkDependent,
   unlinkDependent,
-  getDependents
+  getDependents,
+  requestOTPViaEmail,
+  requestOTPViaPhone,
+  verifyOTPAndLogin
 } = require("../controllers/userController");
 const { protect } = require("../middleware/auth");
 
@@ -15,6 +18,9 @@ const router = express.Router();
 // Public routes
 router.post("/", registerUser);
 router.post("/login", loginUser);
+router.post("/request-otp-email", requestOTPViaEmail);
+router.post("/request-otp-phone", requestOTPViaPhone);
+router.post("/verify-otp", verifyOTPAndLogin);
 
 // Protected routes
 router.get("/profile", protect, getUserProfile);
