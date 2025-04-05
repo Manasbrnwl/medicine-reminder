@@ -321,78 +321,26 @@ exports.getDependents = async (req, res) => {
 exports.requestOTPViaEmail = async (req, res) => {
   try {
     const { email } = req.body;
-
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    let result;
     if (!email) {
       return res.status(400).json({
         success: false,
         message: "Please provide an email"
       });
     }
-
-    // const result = await generateAndSaveOTP(email, true);
-
-    // if (!result.success) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     message: result.message
-    //   });
-    // }
-
-    return res.json({
-      success: true,
-      message: "OTP sent to 7275343674",
-      data: {
-        userId: "67f0cfd933d42221800798f1"
-      }
-    });
-
-    res.json({
-      success: true,
-      message: result.message,
-      data: {
-        userId: result.userId
-      }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Request OTP via phone
-// @route   POST /api/users/request-otp-phone
-// @access  Public
-exports.requestOTPViaPhone = async (req, res) => {
-  try {
-    const { phone } = req.body;
-
-    if (!phone) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide a phone number"
-      });
+    if (emailRegex.test(email)) {
+      result = await generateAndSaveOTP(email, true);
+    } else {
+      result = await generateAndSaveOTP(email, false);
     }
 
-    // const result = await generateAndSaveOTP(phone, false);
-
-    // if (!result.success) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     message: result.message
-    //   });
-    // }
-
-    return res.json({
-      success: true,
-      message: "OTP sent to 7275343674",
-      data: {
-        userId: "67f0cfd933d42221800798f1"
-      }
-    });
-
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        message: result.message
+      });
+    }
     res.json({
       success: true,
       message: result.message,
