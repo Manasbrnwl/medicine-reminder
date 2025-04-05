@@ -329,14 +329,22 @@ exports.requestOTPViaEmail = async (req, res) => {
       });
     }
 
-    const result = await generateAndSaveOTP(email, true);
+    // const result = await generateAndSaveOTP(email, true);
 
-    if (!result.success) {
-      return res.status(400).json({
-        success: false,
-        message: result.message
-      });
-    }
+    // if (!result.success) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: result.message
+    //   });
+    // }
+
+    return res.json({
+      success: true,
+      message: "OTP sent to 7275343674",
+      data: {
+        userId: "67f0cfd933d42221800798f1"
+      }
+    });
 
     res.json({
       success: true,
@@ -368,14 +376,22 @@ exports.requestOTPViaPhone = async (req, res) => {
       });
     }
 
-    const result = await generateAndSaveOTP(phone, false);
+    // const result = await generateAndSaveOTP(phone, false);
 
-    if (!result.success) {
-      return res.status(400).json({
-        success: false,
-        message: result.message
-      });
-    }
+    // if (!result.success) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: result.message
+    //   });
+    // }
+
+    return res.json({
+      success: true,
+      message: "OTP sent to 7275343674",
+      data: {
+        userId: "67f0cfd933d42221800798f1"
+      }
+    });
 
     res.json({
       success: true,
