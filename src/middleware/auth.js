@@ -49,6 +49,31 @@ exports.authorize = (...roles) => {
   };
 };
 
+// Check subscription status
+exports.checkSubscription = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.id);
+
+    if (!user.hasActiveSubscription()) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Your subscription has expired. Please upgrade to continue using the service.",
+        data: {
+          subscription: user.subscription
+        }
+      });
+    }
+
+    next();
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+};
+
 // Check parent-child relationship
 exports.checkRelationship = async (req, res, next) => {
   try {

@@ -2,32 +2,23 @@ const mongoose = require("mongoose");
 
 const MedicineSchema = new mongoose.Schema(
   {
-    name: {
-      type: String,
-      required: [true, "Please add a medicine name"],
-      trim: true
-    },
-    description: {
-      type: String,
-      trim: true
-    },
-    dosage: {
-      type: String,
-      required: [true, "Please add dosage information"]
-    },
-    frequency: {
-      type: String,
-      enum: ["once", "twice", "thrice", "four", "custom"],
-      default: "once"
-    },
-    customFrequency: {
-      type: Number,
-      min: 1
+    medicineStack: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "MedicineStack",
+      required: true
     },
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true
+    },
+    dosage: {
+      type: String,
+      required: [true, "Please add dosage information"]
+    },
+    instructions: {
+      type: String,
+      trim: true
     },
     startDate: {
       type: Date,
@@ -35,10 +26,6 @@ const MedicineSchema = new mongoose.Schema(
     },
     endDate: {
       type: Date
-    },
-    instructions: {
-      type: String,
-      trim: true
     },
     active: {
       type: Boolean,
@@ -58,6 +45,9 @@ const MedicineSchema = new mongoose.Schema(
     toObject: { virtuals: true }
   }
 );
+
+// Compound index for user and medicineStack
+MedicineSchema.index({ user: 1, medicineStack: 1 });
 
 // Reverse populate with reminders
 MedicineSchema.virtual("reminders", {

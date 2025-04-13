@@ -1,4 +1,6 @@
 const Medicine = require("../models/Medicine");
+const MedicineStack = require("../models/MedicineStack");
+const { incrementUsage } = require("./medicineStackController");
 const User = require("../models/User");
 
 // @desc    Get all medicines for a user
@@ -6,8 +8,20 @@ const User = require("../models/User");
 // @access  Private
 exports.getMedicines = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const medicines = await Medicine.find({ user: userId });
+    // Allow filtering by active status
+    const { active } = req.query;
+    const queryObj = { user: req.user.id };
+
+    if (active !== undefined) {
+      queryObj.active = active === "true";
+    }
+
+    const medicines = await Medicine.find(queryObj)
+      .populate({
+        path: "medicineStack",
+        select: "name description category"
+      })
+      .sort({ createdAt: -1 });
 
     res.json({
       success: true,
@@ -30,23 +44,13 @@ exports.getDependentMedicines = async (req, res) => {
   try {
     const { dependentId } = req.params;
 
-    // Check if the requesting user is the parent of the dependent
-    const dependent = await User.findById(dependentId);
-    if (!dependent) {
-      return res.status(404).json({
-        success: false,
-        message: "Dependent not found"
-      });
-    }
-
-    if (dependent.parent.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: "Not authorized to access this dependent's data"
-      });
-    }
-
-    const medicines = await Medicine.find({ user: dependentId });
+    // Check if the current user is a parent of the dependent
+    const medicines = await Medicine.find({ user: dependentId })
+      .populate({
+        path: "medicineStack",
+        select: "name description category"
+      })
+      .sort({ createdAt: -1 });
 
     res.json({
       success: true,
@@ -67,7 +71,10 @@ exports.getDependentMedicines = async (req, res) => {
 // @access  Private
 exports.getMedicine = async (req, res) => {
   try {
-    const medicine = await Medicine.findById(req.params.id);
+    const medicine = await Medicine.findById(req.params.id).populate({
+      path: "medicineStack",
+      select: "name description category"
+    });
 
     if (!medicine) {
       return res.status(404).json({
@@ -76,11 +83,8 @@ exports.getMedicine = async (req, res) => {
       });
     }
 
-    // Make sure user owns the medicine or is parent of the medicine owner
-    const isOwner = medicine.user.toString() === req.user.id;
-    const isParent = await isParentOfUser(req.user.id, medicine.user);
-
-    if (!isOwner && !isParent) {
+    // Check if the medicine belongs to the user
+    if (medicine.user.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: "Not authorized to access this medicine"
@@ -100,90 +104,60 @@ exports.getMedicine = async (req, res) => {
   }
 };
 
-// @desc    Create a new medicine
+// @desc    Add a medicine for a user
 // @route   POST /api/medicines
 // @access  Private
-exports.createMedicine = async (req, res) => {
+exports.addMedicine = async (req, res) => {
   try {
-    // Add user to req.body
-    req.body.user = req.user.id;
+    const { medicineStackId, dosage, instructions, startDate, endDate } =
+      req.body;
 
-    // Validate end date if provided
-    if (req.body.endDate) {
-      const startDate = req.body.startDate
-        ? new Date(req.body.startDate)
-        : new Date();
-      const endDate = new Date(req.body.endDate);
-
-      if (endDate <= startDate) {
-        return res.status(400).json({
-          success: false,
-          message: "End date must be after start date"
-        });
-      }
-    }
-
-    const medicine = await Medicine.create(req.body);
-
-    res.status(201).json({
-      success: true,
-      data: medicine
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Create a medicine for a dependent
-// @route   POST /api/medicines/dependent/:dependentId
-// @access  Private
-exports.createMedicineForDependent = async (req, res) => {
-  try {
-    const { dependentId } = req.params;
-
-    // Check if the requesting user is the parent of the dependent
-    const dependent = await User.findById(dependentId);
-    if (!dependent) {
+    // Check if the medicine stack item exists
+    const medicineStackItem = await MedicineStack.findById(medicineStackId);
+    if (!medicineStackItem) {
       return res.status(404).json({
         success: false,
-        message: "Dependent not found"
+        message: "Medicine not found in the medicine stack"
       });
     }
 
-    if (dependent.parent.toString() !== req.user.id) {
-      return res.status(403).json({
+    // Check if the user already has this medicine
+    const existingMedicine = await Medicine.findOne({
+      user: req.user.id,
+      medicineStack: medicineStackId
+    });
+
+    if (existingMedicine) {
+      return res.status(400).json({
         success: false,
-        message: "Not authorized to create medicine for this dependent"
+        message: "This medicine is already in your list"
       });
     }
 
-    // Add dependent as user to req.body
-    req.body.user = dependentId;
+    // Create the medicine
+    const medicine = await Medicine.create({
+      medicineStack: medicineStackId,
+      user: req.user.id,
+      dosage,
+      instructions,
+      startDate: startDate || new Date(),
+      endDate: endDate || null,
+      active: true
+    });
 
-    // Validate end date if provided
-    if (req.body.endDate) {
-      const startDate = req.body.startDate
-        ? new Date(req.body.startDate)
-        : new Date();
-      const endDate = new Date(req.body.endDate);
+    // Increment the usage counter for the medicine stack item
+    await MedicineStack.findByIdAndUpdate(medicineStackId, {
+      $inc: { usage: 1 }
+    });
 
-      if (endDate <= startDate) {
-        return res.status(400).json({
-          success: false,
-          message: "End date must be after start date"
-        });
-      }
-    }
-
-    const medicine = await Medicine.create(req.body);
+    const populatedMedicine = await Medicine.findById(medicine._id).populate({
+      path: "medicineStack",
+      select: "name description category"
+    });
 
     res.status(201).json({
       success: true,
-      data: medicine
+      data: populatedMedicine
     });
   } catch (error) {
     res.status(500).json({
@@ -199,6 +173,8 @@ exports.createMedicineForDependent = async (req, res) => {
 // @access  Private
 exports.updateMedicine = async (req, res) => {
   try {
+    const { dosage, instructions, startDate, endDate, active } = req.body;
+
     let medicine = await Medicine.findById(req.params.id);
 
     if (!medicine) {
@@ -208,37 +184,28 @@ exports.updateMedicine = async (req, res) => {
       });
     }
 
-    // Make sure user owns the medicine or is parent of the medicine owner
-    const isOwner = medicine.user.toString() === req.user.id;
-    const isParent = await isParentOfUser(req.user.id, medicine.user);
-
-    if (!isOwner && !isParent) {
+    // Check if the medicine belongs to the user
+    if (medicine.user.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: "Not authorized to update this medicine"
       });
     }
 
-    // Validate end date if provided
-    if (req.body.endDate) {
-      const startDate = req.body.startDate
-        ? new Date(req.body.startDate)
-        : medicine.startDate
-        ? new Date(medicine.startDate)
-        : new Date();
-      const endDate = new Date(req.body.endDate);
-
-      if (endDate <= startDate) {
-        return res.status(400).json({
-          success: false,
-          message: "End date must be after start date"
-        });
-      }
-    }
-
-    medicine = await Medicine.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true
+    medicine = await Medicine.findByIdAndUpdate(
+      req.params.id,
+      {
+        dosage: dosage !== undefined ? dosage : medicine.dosage,
+        instructions:
+          instructions !== undefined ? instructions : medicine.instructions,
+        startDate: startDate !== undefined ? startDate : medicine.startDate,
+        endDate: endDate !== undefined ? endDate : medicine.endDate,
+        active: active !== undefined ? active : medicine.active
+      },
+      { new: true, runValidators: true }
+    ).populate({
+      path: "medicineStack",
+      select: "name description category"
     });
 
     res.json({
@@ -268,11 +235,8 @@ exports.deleteMedicine = async (req, res) => {
       });
     }
 
-    // Make sure user owns the medicine or is parent of the medicine owner
-    const isOwner = medicine.user.toString() === req.user.id;
-    const isParent = await isParentOfUser(req.user.id, medicine.user);
-
-    if (!isOwner && !isParent) {
+    // Check if the medicine belongs to the user
+    if (medicine.user.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: "Not authorized to delete this medicine"

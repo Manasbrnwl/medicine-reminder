@@ -2,27 +2,34 @@ const express = require("express");
 const {
   getMedicines,
   getMedicine,
-  createMedicine,
+  addMedicine,
   updateMedicine,
   deleteMedicine,
-  getDependentMedicines,
-  createMedicineForDependent
+  getDependentMedicines
 } = require("../controllers/medicineController");
-const { protect, checkRelationship } = require("../middleware/auth");
+const {
+  protect,
+  checkRelationship,
+  checkSubscription
+} = require("../middleware/auth");
 
 const router = express.Router();
 
 // Protected routes
-router.route("/").get(protect, getMedicines).post(protect, createMedicine);
+router.use(protect);
+router.use(checkSubscription);
 
+// Get all medicines or add new one
+router.route("/").get(getMedicines).post(addMedicine);
+
+// Get medicines for a dependent
+router.get("/dependent/:dependentId", checkRelationship, getDependentMedicines);
+
+// Get, update or delete specific medicine
 router
   .route("/:id")
-  .get(protect, getMedicine)
-  .put(protect, updateMedicine)
-  .delete(protect, deleteMedicine);
-
-// Dependent routes
-router.get("/dependent/:dependentId", protect, getDependentMedicines);
-router.post("/dependent/:dependentId", protect, createMedicineForDependent);
+  .get(getMedicine)
+  .put(updateMedicine)
+  .delete(deleteMedicine);
 
 module.exports = router;

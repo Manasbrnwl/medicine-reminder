@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
+const { addHoursToDate } = require("../default/common");
 
 const UserSchema = new mongoose.Schema(
   {
@@ -30,6 +31,33 @@ const UserSchema = new mongoose.Schema(
       type: String,
       enum: ["user", "admin"],
       default: "user"
+    },
+    // Subscription fields
+    subscription: {
+      status: {
+        type: String,
+        enum: ["free", "premium", "expired"],
+        default: "free"
+      },
+      startDate: {
+        type: Date,
+        default: Date.now
+      },
+      endDate: {
+        type: Date,
+        default: () => {
+          return addHoursToDate(24 * 30);
+        }
+      },
+      autoRenew: {
+        type: Boolean,
+        default: false
+      },
+      paymentMethod: {
+        type: String,
+        enum: ["none", "card", "upi", "netbanking"],
+        default: "none"
+      }
     },
     // For parent-child relationship
     parent: {
@@ -94,6 +122,14 @@ UserSchema.pre("save", async function (next) {
     this.otp = await bcrypt.hash(this.otp, salt);
   }
 
+  // Check subscription status
+  if (
+    this.subscription.status === "free" &&
+    this.subscription.endDate < new Date()
+  ) {
+    this.subscription.status = "expired";
+  }
+
   next();
 });
 
@@ -110,6 +146,15 @@ UserSchema.methods.matchOTP = async function (enteredOTP) {
 // Check if OTP is expired
 UserSchema.methods.isOTPExpired = function () {
   return Date.now() > this.otpExpiry;
+};
+
+// Check if subscription is active
+UserSchema.methods.hasActiveSubscription = function () {
+  return (
+    this.subscription.status === "premium" ||
+    (this.subscription.status === "free" &&
+      this.subscription.endDate > new Date())
+  );
 };
 
 // Link a dependent to a parent
