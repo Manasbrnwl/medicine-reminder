@@ -1,71 +1,27 @@
 const twilio = require("twilio");
 const logger = require("./logger");
 
-// Initialize Twilio client
+// Initialize Twilio client - DISABLED
 const initTwilioClient = () => {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-
-  if (!accountSid || !authToken) {
-    logger.error("Twilio credentials not found in environment variables");
-    return null;
-  }
-
-  try {
-    return twilio(accountSid, authToken);
-  } catch (error) {
-    logger.error(`Failed to initialize Twilio client: ${error.message}`);
-    return null;
-  }
+  logger.info("Twilio client initialization disabled");
+  return null;
 };
 
 /**
- * Send SMS notification using Twilio
+ * Send SMS notification using Twilio - DISABLED
  * @param {string} to - Recipient's phone number (E.164 format)
  * @param {string} message - SMS message content
  * @returns {Promise<boolean>} - Success status
  */
 const sendSMSNotification = async (to, message) => {
-  try {
-    const client = initTwilioClient();
-
-    if (!client) {
-      logger.error("Cannot send SMS: Twilio client not initialized");
-      return false;
-    }
-
-    const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
-
-    if (!twilioPhoneNumber) {
-      logger.error("Twilio phone number not found in environment variables");
-      return false;
-    }
-
-    // Validate phone number format (basic E.164 check)
-    if (!to.startsWith("+")) {
-      logger.error(
-        `Invalid phone number format: ${to}. Must be in E.164 format (e.g., +1XXXXXXXXXX)`
-      );
-      return false;
-    }
-
-    // Send SMS
-    const result = await client.messages.create({
-      body: message,
-      from: twilioPhoneNumber,
-      to: to
-    });
-
-    logger.info(`SMS sent successfully. SID: ${result.sid}`);
-    return true;
-  } catch (error) {
-    logger.error(`Failed to send SMS: ${error.message}`);
-    return false;
-  }
+  logger.info(
+    `SMS functionality is disabled. Would have sent to ${to}: "${message}"`
+  );
+  return false;
 };
 
 /**
- * Format and send a medicine reminder SMS
+ * Format and send a medicine reminder SMS - DISABLED
  * @param {Object} user - User object with phone number
  * @param {Object} reminder - Reminder object with medicine details
  * @returns {Promise<Object>} - Twilio message object or error
@@ -77,7 +33,7 @@ const sendReminderSMS = async (user, reminder) => {
     }
 
     const medicineNames = reminder.medicines
-      .map((med) => med.medicine.medicineStack.name)
+      .map((med) => med.medicine?.medicineStack?.name)
       .join(", ");
 
     const timeFormatted = new Date(reminder.time).toLocaleTimeString("en-US", {
@@ -87,15 +43,18 @@ const sendReminderSMS = async (user, reminder) => {
 
     const message = `REMINDER: Time to take ${medicineNames} at ${timeFormatted}. Open the Medicine Reminder app to mark as taken.`;
 
-    return await sendSMSNotification(user.phone, message);
+    logger.info(
+      `SMS functionality is disabled. Would have sent reminder to ${user.phone}: "${message}"`
+    );
+    return false;
   } catch (error) {
-    logger.error(`Failed to send reminder SMS: ${error.message}`);
+    logger.error(`Failed to prepare reminder SMS: ${error.message}`);
     throw error;
   }
 };
 
 /**
- * Format and send a missed dose SMS
+ * Format and send a missed dose SMS - DISABLED
  * @param {Object} user - User object with phone number
  * @param {Object} reminder - Reminder object with medicine details
  * @returns {Promise<Object>} - Twilio message object or error
@@ -107,7 +66,7 @@ const sendMissedDoseSMS = async (user, reminder) => {
     }
 
     const medicineNames = reminder.medicines
-      .map((med) => med.medicine.medicineStack.name)
+      .map((med) => med.medicine?.medicineStack?.name)
       .join(", ");
 
     const timeFormatted = new Date(reminder.time).toLocaleTimeString("en-US", {
@@ -115,11 +74,18 @@ const sendMissedDoseSMS = async (user, reminder) => {
       minute: "2-digit"
     });
 
-    const message = `MISSED DOSE: You missed taking ${medicineNames} scheduled for ${timeFormatted}. Please check the Medicine Reminder app.`;
+    const isAutomatic = reminder.missedAt ? " automatically" : "";
 
-    return await sendSMSNotification(user.phone, message);
+    const message = reminder.user._id.equals(user._id)
+      ? `MISSED DOSE: Your medication ${medicineNames} scheduled for ${timeFormatted} was${isAutomatic} marked as missed. Please open the Medicine Reminder app for details.`
+      : `MISSED DOSE ALERT: ${reminder.user.name} has${isAutomatic} missed their dose of ${medicineNames} scheduled for ${timeFormatted}.`;
+
+    logger.info(
+      `SMS functionality is disabled. Would have sent missed dose alert to ${user.phone}: "${message}"`
+    );
+    return false;
   } catch (error) {
-    logger.error(`Failed to send missed dose SMS: ${error.message}`);
+    logger.error(`Failed to prepare missed dose SMS: ${error.message}`);
     throw error;
   }
 };

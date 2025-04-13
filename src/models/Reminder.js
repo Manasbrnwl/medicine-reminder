@@ -5,7 +5,7 @@ const ReminderSchema = new mongoose.Schema({
     {
       medicine: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Medicine",
+        ref: "MedicineStack",
         required: true
       },
       status: {
@@ -85,6 +85,14 @@ const ReminderSchema = new mongoose.Schema({
   },
   snoozedUntil: {
     type: Date
+  },
+  missedAt: {
+    type: Date,
+    default: () => {
+      const now = new Date();
+      const istOffset = 30 * 60 * 1000;
+      return new Date(now.getTime() + istOffset);
+    }
   },
   notificationSent: {
     type: Boolean,

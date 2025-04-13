@@ -4,19 +4,18 @@ const socketIO = require("socket.io");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const connectDB = require("../config/db");
+const { connectRedis } = require("../config/redis");
 const schedule = require("node-schedule");
 const morgan = require("morgan");
 const logger = require("../utils/logger");
 const {
   initializeReminders,
-  getQueuesStatus
+  getQueuesStatus,
+  setSocketIo
 } = require("../utils/queueService");
 
 // Load env vars
 dotenv.config();
-
-// Connect to database
-connectDB();
 
 // Initialize Express app
 const app = express();
@@ -32,10 +31,12 @@ const io = socketIO(server, {
   }
 });
 
+// Set the global Socket.IO instance
+setSocketIo(io);
+
 // Middleware
 app.use(cors());
 app.use(express.json());
-
 app.use(morgan("dev"));
 
 // Socket.io connection
@@ -90,46 +91,40 @@ app.get("/api/health", async (req, res) => {
 // Initialize all active reminders
 const initializeApp = async () => {
   try {
-    logger.info("Initializing active reminders...");
+    logger.info("Starting application initialization...");
+
+    // Connect to MongoDB
+    await connectDB();
+    logger.info("MongoDB connected successfully");
+
+    // Connect to Redis
+    await connectRedis();
+    logger.info("Redis connected successfully");
 
     // Initialize reminders using queue service
     const count = await initializeReminders(io);
+    logger.info(`Initialized ${count} active reminders`);
 
     // Set up a daily job to refresh reminders
     schedule.scheduleJob("0 0 * * *", async () => {
-      // Run at midnight every day
-      try {
-        logger.info("Running daily reminder refresh job");
-
-        // Get current date
-        const now = new Date();
-
-        // Set end date to 2 days from now
-        const endDate = new Date(now);
-        endDate.setDate(endDate.getDate() + 2);
-
-        // Schedule reminders for the next 2 days using queue service
-        await initializeReminders(io);
-
-        logger.info("Daily reminder refresh completed successfully");
-      } catch (error) {
-        logger.error(`Error in daily reminder refresh: ${error.message}`);
-      }
+      logger.info("Running daily reminder refresh...");
+      await initializeReminders(io);
     });
 
-    logger.info(`Reminders initialized successfully (${count} scheduled)`);
+    // Start the server
+    const PORT = process.env.PORT || 3000;
+    server.listen(PORT, () => {
+      logger.info(`Server running on port ${PORT}`);
+    });
   } catch (error) {
-    logger.error(`Error initializing reminders: ${error.message}`);
+    logger.error(`Application initialization failed: ${error.message}`);
+    logger.error(`Error stack: ${error.stack}`);
+    process.exit(1);
   }
 };
 
-// Start server
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  logger.info(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
-  // Initialize reminders after server starts
-  initializeApp();
-});
+// Start the application
+initializeApp();
 
 // Handle unhandled promise rejections
 process.on("unhandledRejection", (err) => {

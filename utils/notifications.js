@@ -1,6 +1,7 @@
 const nodemailer = require("nodemailer");
-const { Twilio } = require("twilio");
+// const { Twilio } = require("twilio");
 require("dotenv").config();
+const logger = require("./logger");
 
 // Configure email transporter
 const transporter = nodemailer.createTransport({
@@ -14,11 +15,11 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// Configure Twilio client
-const twilioClient = new Twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-);
+// Twilio client initialization commented out
+// const twilioClient = new Twilio(
+//   process.env.TWILIO_ACCOUNT_SID,
+//   process.env.TWILIO_AUTH_TOKEN
+// );
 
 /**
  * Send email notification
@@ -40,14 +41,14 @@ exports.sendEmailNotification = async (email, subject, text, html) => {
 
     transporter.sendMail(mailOptions, (error, info) => {
       if (error) {
-        console.error("Email error:", error);
+        logger.error(`Email error: ${error.message}`);
         return false;
       }
-      console.log(`Email notification sent to ${email}`);
+      logger.info(`Email notification sent to ${email}`);
       return true;
     });
   } catch (error) {
-    console.error("Email error:", error);
+    logger.error(`Email error: ${error.message}`);
     return false;
   }
 };
@@ -62,39 +63,25 @@ exports.sendEmailNotification = async (email, subject, text, html) => {
 exports.sendPushNotification = (io, userId, data) => {
   try {
     io.to(userId).emit("notification", data);
-    console.log(`Push notification sent to user ${userId}`);
+    logger.info(`Push notification sent to user ${userId}`);
     return true;
   } catch (error) {
-    console.error("Push notification error:", error);
+    logger.error(`Push notification error: ${error.message}`);
     return false;
   }
 };
 
 /**
- * Send SMS notification (implementation depends on the SMS service provider)
+ * Send SMS notification (DISABLED)
  * @param {string} phoneNumber - Recipient phone number
  * @param {string} message - SMS content
  * @returns {Promise} - Promise resolved on SMS sent
  */
 exports.sendSMSNotification = async (phoneNumber, message) => {
-  try {
-    // Format phone number to E.164 format if it doesn't start with +
-    const formattedPhoneNumber = phoneNumber.startsWith("+91")
-      ? phoneNumber
-      : `+91${phoneNumber}`;
-
-    const result = await twilioClient.messages.create({
-      body: message,
-      from: process.env.TWILIO_PHONE_NUMBER,
-      to: formattedPhoneNumber
-    });
-
-    console.log(`SMS sent to ${phoneNumber}. SID: ${result.sid}`);
-    return true;
-  } catch (error) {
-    console.error("SMS error:", error);
-    return false;
-  }
+  logger.info(
+    `SMS functionality is disabled. Would have sent to ${phoneNumber}: "${message}"`
+  );
+  return false;
 };
 
 /**

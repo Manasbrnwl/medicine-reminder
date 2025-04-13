@@ -25,7 +25,10 @@ const UserSchema = new mongoose.Schema(
     },
     phone: {
       type: String,
-      match: [/^[0-9]{10,15}$/, "Please add a valid phone number"]
+      match: [
+        /^\+[1-9]\d{1,14}$/,
+        "Please add a valid phone number in E.164 format (e.g., +1234567890)"
+      ]
     },
     role: {
       type: String,
@@ -83,6 +86,11 @@ const UserSchema = new mongoose.Schema(
         type: Boolean,
         default: false
       }
+    },
+    // Streak count - days in a row all reminders were taken
+    streakCount: {
+      type: Number,
+      default: 0
     },
     // OTP fields for OTP-based login
     otp: {

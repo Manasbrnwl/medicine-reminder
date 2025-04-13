@@ -22,6 +22,7 @@ const moment = require("moment-timezone");
 const {
   scheduleRemindersInRange: queueServiceScheduleRemindersInRange
 } = require("../../utils/queueService");
+const mongoose = require("mongoose");
 
 // Helper function to check if the user is a parent of another user
 const isParentOfUser = async (parentId, childId) => {
@@ -50,7 +51,10 @@ exports.getReminders = async (req, res) => {
     }
 
     // Execute query
-    const reminders = await Reminder.find(queryObj)
+    const reminders = await Reminder.find({
+      ...queryObj,
+      time: { $gt: new Date() }
+    })
       .populate({
         path: "medicines.medicine",
         populate: {
@@ -249,64 +253,134 @@ exports.createReminder = async (req, res) => {
       });
     }
 
-    // Calculate the next time for the reminder based on frequency
-    let nextTime;
     if (frequency === "once") {
-      nextTime = new Date(standardTime);
+      // Create reminder
+      await Reminder.create({
+        medicines: medicinesArray,
+        user: req.user.id,
+        scheduleStart: scheduleStart || new Date(),
+        scheduleEnd: scheduleEnd || null,
+        frequency,
+        time: new Date(standardTime),
+        repeat: repeat || "none",
+        daysOfWeek: daysOfWeek || [],
+        daysOfMonth: daysOfMonth || [],
+        repeatInterval: repeatInterval || 1,
+        repeatUnit: repeatUnit || "days",
+        active: true
+      });
     } else if (frequency === "twice") {
-      // Get the earlier of morning or evening time
-      const morning = new Date(morningTime);
-      const evening = new Date(eveningTime);
-      nextTime = morning < evening ? morning : evening;
+      await Reminder.create({
+        medicines: medicinesArray,
+        user: req.user.id,
+        scheduleStart: scheduleStart || new Date(),
+        scheduleEnd: scheduleEnd || null,
+        frequency,
+        time: new Date(morningTime),
+        repeat: repeat || "none",
+        daysOfWeek: daysOfWeek || [],
+        daysOfMonth: daysOfMonth || [],
+        repeatInterval: repeatInterval || 1,
+        repeatUnit: repeatUnit || "days",
+        active: true
+      });
+      await Reminder.create({
+        medicines: medicinesArray,
+        user: req.user.id,
+        scheduleStart: scheduleStart || new Date(),
+        scheduleEnd: scheduleEnd || null,
+        frequency,
+        time: new Date(eveningTime),
+        repeat: repeat || "none",
+        daysOfWeek: daysOfWeek || [],
+        daysOfMonth: daysOfMonth || [],
+        repeatInterval: repeatInterval || 1,
+        repeatUnit: repeatUnit || "days",
+        active: true
+      });
     } else if (frequency === "thrice") {
-      // Get the earliest of morning, afternoon, or evening
-      const morning = new Date(morningTime);
-      const afternoon = new Date(afternoonTime);
-      const evening = new Date(eveningTime);
+      await Reminder.create({
+        medicines: medicinesArray,
+        user: req.user.id,
+        scheduleStart: scheduleStart || new Date(),
+        scheduleEnd: scheduleEnd || null,
+        frequency,
+        time: new Date(morningTime),
+        repeat: repeat || "none",
+        daysOfWeek: daysOfWeek || [],
+        daysOfMonth: daysOfMonth || [],
+        repeatInterval: repeatInterval || 1,
+        repeatUnit: repeatUnit || "days",
+        active: true
+      });
+      await Reminder.create({
+        medicines: medicinesArray,
+        user: req.user.id,
+        scheduleStart: scheduleStart || new Date(),
+        scheduleEnd: scheduleEnd || null,
+        frequency,
+        time: new Date(afternoonTime),
+        repeat: repeat || "none",
+        daysOfWeek: daysOfWeek || [],
+        daysOfMonth: daysOfMonth || [],
+        repeatInterval: repeatInterval || 1,
+        repeatUnit: repeatUnit || "days",
+        active: true
+      });
+      await Reminder.create({
+        medicines: medicinesArray,
+        user: req.user.id,
+        scheduleStart: scheduleStart || new Date(),
+        scheduleEnd: scheduleEnd || null,
+        frequency,
+        time: new Date(eveningTime),
+        repeat: repeat || "none",
+        daysOfWeek: daysOfWeek || [],
+        daysOfMonth: daysOfMonth || [],
+        repeatInterval: repeatInterval || 1,
+        repeatUnit: repeatUnit || "days",
+        active: true
+      });
       nextTime = Math.min(morning, afternoon, evening);
     } else if (frequency === "custom" && customTimes.length > 0) {
-      // Sort custom times and get the earliest
-      const sortedTimes = [...customTimes].sort(
-        (a, b) => new Date(a.time) - new Date(b.time)
+      await Promise.all(
+        customTimes.map(async (time) => {
+          await Reminder.create({
+            medicines: medicinesArray,
+            user: req.user.id,
+            scheduleStart: scheduleStart || new Date(),
+            scheduleEnd: scheduleEnd || null,
+            frequency,
+            time: new Date(time),
+            repeat: repeat || "none",
+            daysOfWeek: daysOfWeek || [],
+            daysOfMonth: daysOfMonth || [],
+            repeatInterval: repeatInterval || 1,
+            repeatUnit: repeatUnit || "days",
+            active: true
+          });
+        })
       );
-      nextTime = new Date(sortedTimes[0].time);
     } else {
-      nextTime = new Date(); // Fallback to current time
+      await Reminder.create({
+        medicines: medicinesArray,
+        user: req.user.id,
+        scheduleStart: scheduleStart || new Date(),
+        scheduleEnd: scheduleEnd || null,
+        frequency,
+        time: new Date(),
+        repeat: repeat || "none",
+        daysOfWeek: daysOfWeek || [],
+        daysOfMonth: daysOfMonth || [],
+        repeatInterval: repeatInterval || 1,
+        repeatUnit: repeatUnit || "days",
+        active: true
+      });
     }
-
-    // Create reminder
-    const reminder = await Reminder.create({
-      medicines: medicinesArray,
-      user: req.user.id,
-      scheduleStart: scheduleStart || new Date(),
-      scheduleEnd: scheduleEnd || null,
-      frequency,
-      standardTime: standardTime || null,
-      morningTime: morningTime || null,
-      eveningTime: eveningTime || null,
-      afternoonTime: afternoonTime || null,
-      customTimes: customTimes || [],
-      time: nextTime,
-      repeat: repeat || "none",
-      daysOfWeek: daysOfWeek || [],
-      daysOfMonth: daysOfMonth || [],
-      repeatInterval: repeatInterval || 1,
-      repeatUnit: repeatUnit || "days",
-      active: true
-    });
-
-    // Populate the created reminder for response
-    const populatedReminder = await Reminder.findById(reminder._id).populate({
-      path: "medicines.medicine",
-      populate: {
-        path: "medicineStack",
-        select: "name description category"
-      }
-    });
 
     res.status(201).json({
       success: true,
-      data: populatedReminder
+      message: "All the reminders are set."
     });
   } catch (error) {
     res.status(500).json({
@@ -569,6 +643,12 @@ exports.markMedicineAsTaken = async (req, res) => {
       });
     }
 
+    // Check if this medicine was automatically marked as missed
+    const wasAutomaticallyMissed =
+      reminder.status === "missed" &&
+      reminder.missedAt &&
+      reminder.medicines[medicineIndex].status === "missed";
+
     // Mark the specific medicine as taken
     reminder.medicines[medicineIndex].status = "taken";
     reminder.medicines[medicineIndex].markedBy = req.user.id;
@@ -578,11 +658,33 @@ exports.markMedicineAsTaken = async (req, res) => {
     const allMedicineStatuses = reminder.medicines.map((m) => m.status);
     if (allMedicineStatuses.every((status) => status === "taken")) {
       reminder.status = "completed";
+      // If it was automatically missed but now all taken, clear the missedAt
+      if (reminder.missedAt) {
+        reminder.missedAt = undefined;
+      }
     } else if (allMedicineStatuses.some((status) => status === "taken")) {
-      reminder.status = "partially_completed";
+      if (allMedicineStatuses.some((status) => status === "missed")) {
+        reminder.status = "partially_completed";
+      } else {
+        reminder.status = "partially_completed";
+        // If it was automatically missed but now partially taken, clear the missedAt
+        if (reminder.missedAt) {
+          reminder.missedAt = undefined;
+        }
+      }
     }
 
     await reminder.save();
+
+    // If this was automatically marked as missed, add a message
+    if (wasAutomaticallyMissed) {
+      return res.json({
+        success: true,
+        message:
+          "Medicine marked as taken. Note: This was previously automatically marked as missed.",
+        data: reminder
+      });
+    }
 
     res.json({
       success: true,
@@ -884,17 +986,179 @@ exports.createReminderForDependent = async (req, res) => {
   }
 };
 
-// Dashboard statistics calculation
 // @desc    Get dashboard stats for a user
 // @route   GET /api/reminders/dashboard
 // @access  Private
 exports.getDashboardStats = async (req, res) => {
   try {
-    // Implementation will need to be updated based on the new model
-    // This is just a placeholder for now
+    const userId = req.user.id;
+    const { date } = req.query;
+
+    let today = new Date(date);
+    const startOfDay = new Date(today.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+
+    // Get user info
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    // Get reminder counts by status
+    const reminderCountsByStatus = await Reminder.aggregate([
+      {
+        $match: {
+          user: mongoose.Types.ObjectId(userId),
+          time: { $lte: endOfDay }
+        }
+      },
+      {
+        $group: {
+          _id: "$status",
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Format reminder counts
+    const reminderCounts = {
+      taken: 0,
+      missed: 0,
+      pending: 0,
+      total: 0
+    };
+
+    reminderCountsByStatus.forEach((stat) => {
+      if (stat._id === "completed") reminderCounts.taken = stat.count;
+      else if (stat._id === "missed") reminderCounts.missed = stat.count;
+      else if (stat._id === "pending") reminderCounts.pending = stat.count;
+      reminderCounts.total += stat.count;
+    });
+
+    // Get most taken medicines
+    const mostTakenMedicines = await Reminder.aggregate([
+      {
+        $match: {
+          user: mongoose.Types.ObjectId(userId),
+          "medicines.status": "taken"
+        }
+      },
+      { $unwind: "$medicines" },
+      { $match: { "medicines.status": "taken" } },
+      {
+        $group: {
+          _id: "$medicines.medicine",
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { count: -1 } },
+      { $limit: 5 },
+      {
+        $lookup: {
+          from: "medicines",
+          localField: "_id",
+          foreignField: "_id",
+          as: "medicineDetails"
+        }
+      },
+      { $unwind: "$medicineDetails" },
+      {
+        $project: {
+          _id: 1,
+          count: 1,
+          name: "$medicineDetails.name",
+          category: "$medicineDetails.category"
+        }
+      }
+    ]);
+
+    // Calculate streak points
+    // A day is counted in streak if all reminders for that day were taken
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+    // Group reminders by date
+    const remindersByDate = await Reminder.aggregate([
+      {
+        $match: {
+          user: mongoose.Types.ObjectId(userId),
+          time: { $gte: oneMonthAgo }
+        }
+      },
+      {
+        $project: {
+          date: { $dateToString: { format: "%Y-%m-%d", date: "$time" } },
+          allTaken: {
+            $allElementsTrue: {
+              $map: {
+                input: "$medicines",
+                as: "med",
+                in: { $eq: ["$$med.status", "taken"] }
+              }
+            }
+          }
+        }
+      },
+      {
+        $group: {
+          _id: "$date",
+          allRemindersForDayTaken: { $min: "$allTaken" },
+          reminderCount: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // Calculate current streak
+    let streakCount = 0;
+    today = new Date().toISOString().split("T")[0];
+
+    // Create a set of dates with all reminders taken
+    const completedDates = new Set();
+    remindersByDate.forEach((day) => {
+      if (day.allRemindersForDayTaken && day.reminderCount > 0) {
+        completedDates.add(day._id);
+      }
+    });
+
+    // Count consecutive days from today backwards
+    let currentDate = new Date();
+    while (true) {
+      const dateString = currentDate.toISOString().split("T")[0];
+
+      // Skip future dates
+      if (dateString > today) {
+        currentDate.setDate(currentDate.getDate() - 1);
+        continue;
+      }
+
+      if (completedDates.has(dateString)) {
+        streakCount++;
+        currentDate.setDate(currentDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+
+    // Update user's streak count if the new count is higher than the existing one
+    if (!user.streakCount || streakCount > user.streakCount) {
+      await User.findByIdAndUpdate(userId, { streakCount });
+    }
+
     res.json({
       success: true,
-      message: "Dashboard stats endpoint (to be implemented with new model)"
+      data: {
+        user: {
+          name: user.name,
+          email: user.email
+        },
+        reminderCounts,
+        streakPoints: streakCount,
+        mostTakenMedicines
+      }
     });
   } catch (error) {
     res.status(500).json({
@@ -1036,6 +1300,59 @@ exports.scheduleAllUserReminders = async (req, res) => {
       success: true,
       message: `Scheduled ${count} reminders for user`,
       count
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined
+    });
+  }
+};
+
+// @desc    Get all reminders with medicine details
+// @route   GET /api/reminders/with-medicine-details
+// @access  Private
+exports.getRemindersWithMedicineDetails = async (req, res) => {
+  try {
+    const { status, date } = req.query;
+    const queryObj = { user: req.user.id };
+
+    // Add status filter if provided
+    if (status) {
+      queryObj.status = status;
+    }
+    const today = new Date(date);
+    const startOfDay = new Date(today.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+    // Execute query
+    const reminders = await Reminder.find({
+      ...queryObj,
+      time: { $gte: startOfDay, $lte: endOfDay }
+    })
+      .populate({
+        path: "medicines.medicine"
+      })
+      .sort({ time: 1 });
+
+    // Format response with required fields
+    const formattedReminders = reminders.map((reminder) => {
+      return {
+        reminder_id: reminder._id,
+        time: reminder.time,
+        status: reminder.status,
+        medicines: reminder.medicines.map((med) => ({
+          medicine_name: med.medicine?.name || "Unknown",
+          medicine_category: med.medicine?.category || "Unknown",
+          medicine_status: med.status
+        }))
+      };
+    });
+
+    res.json({
+      success: true,
+      count: formattedReminders.length,
+      data: formattedReminders
     });
   } catch (error) {
     res.status(500).json({

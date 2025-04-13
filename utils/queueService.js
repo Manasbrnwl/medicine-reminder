@@ -2,21 +2,76 @@ const Bull = require("bull");
 const logger = require("./logger");
 const Reminder = require("../src/models/Reminder");
 const { sendPushNotification } = require("./notifications");
-const { sendReminderSMS, sendMissedDoseSMS } = require("./smsNotification");
+// const { sendReminderSMS, sendMissedDoseSMS } = require("./smsNotification");
+const { getRedisClient } = require("../config/redis");
 
-// Redis connection configuration from environment variables
+// Redis connection configuration using URL
 const redisConfig = {
-  redis: {
-    host: process.env.REDIS_HOST || "localhost",
-    port: parseInt(process.env.REDIS_PORT || "6379"),
-    password: process.env.REDIS_PASSWORD
+  redis: process.env.REDIS_URL,
+  settings: {
+    lockDuration: 30000,
+    stalledInterval: 30000,
+    maxStalledCount: 1
+  },
+  limiter: {
+    max: 1000,
+    duration: 5000
+  },
+  tls: {
+    rejectUnauthorized: false // Allow self-signed certificates
   }
 };
 
 // Create queues for different types of jobs
-const reminderQueue = new Bull("medication-reminders", redisConfig);
-const missedDoseQueue = new Bull("missed-dose-checks", redisConfig);
-const recurringReminderQueue = new Bull("recurring-reminders", redisConfig);
+let reminderQueue, missedDoseQueue, recurringReminderQueue;
+
+// Global socket.io instance
+let globalIo = null;
+
+// Set the global socket.io instance
+const setSocketIo = (io) => {
+  globalIo = io;
+  logger.info("Socket.IO instance set globally");
+};
+
+// Initialize queues
+const initializeQueues = () => {
+  try {
+    logger.info("Initializing Bull queues...");
+
+    reminderQueue = new Bull("medication-reminders", redisConfig);
+    missedDoseQueue = new Bull("missed-dose-checks", redisConfig);
+    recurringReminderQueue = new Bull("recurring-reminders", redisConfig);
+
+    // Add error handlers for each queue
+    [reminderQueue, missedDoseQueue, recurringReminderQueue].forEach(
+      (queue) => {
+        queue.on("error", (error) => {
+          logger.error(`Queue ${queue.name} error: ${error.message}`);
+        });
+
+        queue.on("failed", (job, error) => {
+          logger.error(
+            `Job ${job.id} in queue ${queue.name} failed: ${error.message}`
+          );
+        });
+
+        queue.on("stalled", (job) => {
+          logger.warn(`Job ${job.id} in queue ${queue.name} has stalled`);
+        });
+      }
+    );
+
+    logger.info("Bull queues initialized successfully");
+    return true;
+  } catch (error) {
+    logger.error(`Failed to initialize Bull queues: ${error.message}`);
+    return false;
+  }
+};
+
+// Initialize queues
+initializeQueues();
 
 // Process reminder notifications
 reminderQueue.process(async (job) => {
@@ -48,15 +103,15 @@ reminderQueue.process(async (job) => {
       return { success: false, reason: "reminder_inactive_or_completed" };
     }
 
-    // Send notifications using the socket.io instance from job data
-    await sendNotifications(reminder, job.data.io);
+    // Send notifications using the global socket.io instance
+    await sendNotifications(reminder, globalIo);
 
     // Schedule missed dose check
-    await scheduleMissedDoseCheck(reminder, job.data.io);
+    await scheduleMissedDoseCheck(reminder, globalIo);
 
     // Schedule next occurrence if it's a recurring reminder
     if (reminder.repeat !== "none" && reminder.scheduleEnd) {
-      await scheduleNextRecurrence(reminder, job.data.io);
+      await scheduleNextRecurrence(reminder, globalIo);
     }
 
     return { success: true };
@@ -96,15 +151,40 @@ missedDoseQueue.process(async (job) => {
     );
 
     if (hasPendingMedicines) {
+      logger.info(
+        `Reminder ${reminderId} has pending medicines, marking as missed`
+      );
+
+      // Update individual medicines to missed status
+      const updatedMedicines = reminder.medicines.map((med) => {
+        if (med.status === "pending") {
+          return {
+            ...med.toObject(),
+            status: "missed"
+          };
+        }
+        return med;
+      });
+
       // Mark reminder as missed
       await Reminder.findByIdAndUpdate(reminderId, {
-        status: "missed"
+        status: "missed",
+        medicines: updatedMedicines,
+        missedAt: new Date()
       });
 
       // Notify parent if exists and not already notified
       if (reminder.user?.parent && !reminder.parentNotified) {
-        await notifyParent(reminder, job.data.io);
+        await notifyParent(reminder, globalIo);
       }
+
+      logger.info(
+        `Reminder ${reminderId} automatically marked as missed after 30 minutes of inactivity`
+      );
+    } else {
+      logger.info(
+        `Reminder ${reminderId} has no pending medicines, no action needed`
+      );
     }
 
     return { success: true };
@@ -139,7 +219,7 @@ recurringReminderQueue.process(async (job) => {
     }
 
     // Create next occurrence based on reminder pattern
-    const result = await createNextOccurrence(reminder, job.data.io);
+    const result = await createNextOccurrence(reminder, globalIo);
     return { success: true, nextReminderId: result?.reminderId };
   } catch (error) {
     logger.error(`Error creating recurring reminder: ${error.message}`);
@@ -165,10 +245,10 @@ async function sendNotifications(reminder, io) {
       logger.info(`Push notification sent to user ${user._id}`);
     }
 
-    // Send SMS notification
+    // Send SMS notification - DISABLED
     if (user.notificationPreferences?.sms && user.phone) {
-      await sendReminderSMS(user, reminder);
-      logger.info(`SMS notification sent to ${user.phone}`);
+      // await sendReminderSMS(user, reminder);
+      logger.info(`SMS notification to ${user.phone} is disabled`);
     }
 
     // Update reminder status
@@ -214,18 +294,26 @@ function formatNotification(reminder) {
 // Schedule a check for missed doses
 async function scheduleMissedDoseCheck(reminder, io) {
   try {
-    // Set check time to 30 minutes after reminder time
-    const checkTime = new Date();
-    checkTime.setMinutes(checkTime.getMinutes() + 30);
+    // Set check time to exactly 30 minutes after reminder time
+    const reminderTime = new Date(reminder.time);
+    const checkTime = new Date(reminderTime.getTime() + 30 * 60 * 1000); // 30 minutes in milliseconds
+
+    // Only schedule if check time is in the future
+    const now = new Date();
+    if (checkTime <= now) {
+      logger.warn(
+        `Missed dose check time for reminder ${reminder._id} is in the past, skipping`
+      );
+      return false;
+    }
 
     // Calculate delay in milliseconds
-    const delay = Math.max(0, checkTime.getTime() - Date.now());
+    const delay = checkTime.getTime() - now.getTime();
 
     // Add to missed dose queue with delay
     await missedDoseQueue.add(
       {
-        reminderId: reminder._id.toString(),
-        io
+        reminderId: reminder._id.toString()
       },
       {
         delay,
@@ -241,7 +329,9 @@ async function scheduleMissedDoseCheck(reminder, io) {
     logger.info(
       `Scheduled missed dose check for reminder ${
         reminder._id
-      } at ${checkTime.toISOString()}`
+      } at ${checkTime.toISOString()} (in ${Math.round(
+        delay / 1000 / 60
+      )} minutes)`
     );
     return true;
   } catch (error) {
@@ -259,15 +349,20 @@ async function notifyParent(reminder, io) {
     if (!parent) return false;
 
     // Format notification for parent
+    const isAutomatic = reminder.missedAt ? "automatically " : "";
+
     const notification = {
       title: "Missed Dose Alert",
-      body: `${reminder.user.name} missed their dose of ${reminder.medicines
+      body: `${
+        reminder.user.name
+      } has ${isAutomatic}missed their dose of ${reminder.medicines
         .map((med) => med.medicine?.medicineStack?.name)
         .join(", ")}`,
       data: {
         reminderId: reminder._id,
         dependentId: reminder.user._id,
-        time: reminder.time
+        time: reminder.time,
+        automatic: !!reminder.missedAt
       }
     };
 
@@ -276,9 +371,10 @@ async function notifyParent(reminder, io) {
       sendPushNotification(io, parent._id.toString(), notification);
     }
 
-    // Send SMS to parent
+    // Send SMS to parent - DISABLED
     if (parent.notificationPreferences?.sms && parent.phone) {
-      await sendMissedDoseSMS(parent, reminder);
+      // await sendMissedDoseSMS(parent, reminder);
+      logger.info(`SMS notification to parent ${parent.phone} is disabled`);
     }
 
     // Update reminder to indicate parent was notified
@@ -287,7 +383,9 @@ async function notifyParent(reminder, io) {
     });
 
     logger.info(
-      `Parent ${parent._id} notified about missed dose for reminder ${reminder._id}`
+      `Parent ${parent._id} notified about ${
+        isAutomatic ? "automatically " : ""
+      }missed dose for reminder ${reminder._id}`
     );
     return true;
   } catch (error) {
@@ -299,11 +397,10 @@ async function notifyParent(reminder, io) {
 // Schedule next occurrence of recurring reminder
 async function scheduleNextRecurrence(reminder, io) {
   try {
-    // Add job to create next occurrence
+    // Add job to create next occurrence - don't pass io object
     await recurringReminderQueue.add(
       {
-        reminderId: reminder._id.toString(),
-        io
+        reminderId: reminder._id.toString()
       },
       {
         attempts: 3,
@@ -341,7 +438,7 @@ async function createNextOccurrence(reminder, io) {
 
     // Create new reminder for next occurrence
     const medicinesArray = reminder.medicines.map((med) => ({
-      medicine: med.medicine._id,
+      medicine: med._id,
       status: "pending"
     }));
 
@@ -364,7 +461,6 @@ async function createNextOccurrence(reminder, io) {
       repeatUnit: reminder.repeatUnit,
       active: true
     });
-
     // Save the new reminder
     const savedReminder = await newReminder.save();
 
@@ -497,11 +593,10 @@ async function scheduleReminder(reminderId, reminderTime, io) {
     // Calculate delay in milliseconds
     const delay = reminderTime.getTime() - Date.now();
 
-    // Add to reminder queue with delay
+    // Add to reminder queue with delay - don't pass io object
     await reminderQueue.add(
       {
-        reminderId: reminderId.toString(),
-        io
+        reminderId: reminderId.toString()
       },
       {
         delay,
@@ -721,5 +816,6 @@ module.exports = {
   cleanupQueues,
   pauseQueues,
   resumeQueues,
-  getQueuesStatus
+  getQueuesStatus,
+  setSocketIo
 };

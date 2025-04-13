@@ -13,7 +13,8 @@ const {
   getDashboardStats,
   getDependentDashboardStats,
   scheduleRemindersInDateRange,
-  scheduleAllUserReminders
+  scheduleAllUserReminders,
+  getRemindersWithMedicineDetails
 } = require("../controllers/reminderController");
 const {
   protect,
@@ -37,6 +38,9 @@ router.get(
   checkRelationship,
   getDependentDashboardStats
 );
+
+// Get reminders with medicine details
+router.get("/with-medicine-details", getRemindersWithMedicineDetails);
 
 // Add new route for scheduling reminders within a date range
 router.post("/schedule", scheduleRemindersInDateRange);
