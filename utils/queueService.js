@@ -608,6 +608,10 @@ async function scheduleReminder(reminderId, reminderTime, io) {
 async function scheduleRemindersInRange(startDate, endDate, io, userId = null) {
   try {
 
+    // Add 5 hours and 30 minutes (19800000 ms) to both dates
+    startDate = new Date(new Date(startDate).getTime() + (5 * 60 + 30) * 60 * 1000);
+    endDate = new Date(new Date(endDate).getTime() + (5 * 60 + 30) * 60 * 1000);
+    
     // Build query for reminders within date range
     const query = {
       time: { $gte: startDate, $lte: endDate },
