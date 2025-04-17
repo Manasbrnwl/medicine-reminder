@@ -91,23 +91,15 @@ app.get("/api/health", async (req, res) => {
 // Initialize all active reminders
 const initializeApp = async () => {
   try {
-    logger.info("Starting application initialization...");
-
     // Connect to MongoDB
     await connectDB();
-    logger.info("MongoDB connected successfully");
-
     // Connect to Redis
     await connectRedis();
-    logger.info("Redis connected successfully");
-
     // Initialize reminders using queue service
     const count = await initializeReminders(io);
-    logger.info(`Initialized ${count} active reminders`);
 
     // Set up a daily job to refresh reminders
     schedule.scheduleJob("0 0 * * *", async () => {
-      logger.info("Running daily reminder refresh...");
       await initializeReminders(io);
     });
 
@@ -118,7 +110,7 @@ const initializeApp = async () => {
     });
   } catch (error) {
     logger.error(`Application initialization failed: ${error.message}`);
-    logger.error(`Error stack: ${error.stack}`);
+    // logger.error(`Error stack: ${error.stack}`);
     process.exit(1);
   }
 };

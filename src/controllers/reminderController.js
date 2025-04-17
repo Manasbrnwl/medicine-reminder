@@ -56,11 +56,7 @@ exports.getReminders = async (req, res) => {
       time: { $gt: new Date() }
     })
       .populate({
-        path: "medicines.medicine",
-        populate: {
-          path: "medicineStack",
-          select: "name description category"
-        }
+        path: "medicines.medicine"
       })
       .sort({ time: 1 });
 
@@ -84,11 +80,7 @@ exports.getReminders = async (req, res) => {
 exports.getReminder = async (req, res) => {
   try {
     const reminder = await Reminder.findById(req.params.id).populate({
-      path: "medicines.medicine",
-      populate: {
-        path: "medicineStack",
-        select: "name description category"
-      }
+      path: "medicines.medicine"
     });
 
     if (!reminder) {
@@ -546,11 +538,7 @@ exports.updateReminder = async (req, res) => {
       },
       { new: true, runValidators: true }
     ).populate({
-      path: "medicines.medicine",
-      populate: {
-        path: "medicineStack",
-        select: "name description category"
-      }
+      path: "medicines.medicine"
     });
 
     res.json({
@@ -610,11 +598,7 @@ exports.markMedicineAsTaken = async (req, res) => {
   try {
     const { id, medicineIndex } = req.params;
     const reminder = await Reminder.findById(id).populate({
-      path: "medicines.medicine",
-      populate: {
-        path: "medicineStack",
-        select: "name description category"
-      }
+      path: "medicines.medicine"
     });
 
     if (!reminder) {
@@ -706,11 +690,7 @@ exports.markMedicineAsMissed = async (req, res) => {
   try {
     const { id, medicineIndex } = req.params;
     const reminder = await Reminder.findById(id).populate({
-      path: "medicines.medicine",
-      populate: {
-        path: "medicineStack",
-        select: "name description category"
-      }
+      path: "medicines.medicine"
     });
 
     if (!reminder) {
@@ -813,11 +793,7 @@ exports.snoozeReminder = async (req, res) => {
       },
       { new: true }
     ).populate({
-      path: "medicines.medicine",
-      populate: {
-        path: "medicineStack",
-        select: "name description category"
-      }
+      path: "medicines.medicine"
     });
 
     if (!updatedReminder) {
@@ -878,11 +854,7 @@ exports.getDependentReminders = async (req, res) => {
     // Execute query
     const reminders = await Reminder.find(queryObj)
       .populate({
-        path: "medicines.medicine",
-        populate: {
-          path: "medicineStack",
-          select: "name description category"
-        }
+        path: "medicines.medicine"
       })
       .sort({ time: 1 });
 
@@ -966,11 +938,7 @@ exports.createReminderForDependent = async (req, res) => {
 
     // Populate the created reminder for response
     const populatedReminder = await Reminder.findById(reminder._id).populate({
-      path: "medicines.medicine",
-      populate: {
-        path: "medicineStack",
-        select: "name description category"
-      }
+      path: "medicines.medicine"
     });
 
     res.status(201).json({
@@ -1316,18 +1284,14 @@ exports.scheduleAllUserReminders = async (req, res) => {
 exports.getRemindersWithMedicineDetails = async (req, res) => {
   try {
     const { status, date } = req.query;
-    const queryObj = { user: req.user.id };
 
-    // Add status filter if provided
-    if (status) {
-      queryObj.status = status;
-    }
     const today = new Date(date);
-    const startOfDay = new Date(today.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+    const startOfDay = new Date(today.setHours(5, 30, 0, 0));
+    const endOfDay = new Date(today.setHours(29, 29, 59, 999));
     // Execute query
     const reminders = await Reminder.find({
-      ...queryObj,
+      user: req.user.id,
+      status,
       time: { $gte: startOfDay, $lte: endOfDay }
     })
       .populate({

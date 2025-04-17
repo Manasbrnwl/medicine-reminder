@@ -8,8 +8,6 @@ const connectRedis = async () => {
   try {
     // Log the Redis URL (without password for security)
     const redisUrl = process.env.REDIS_URL;
-    const sanitizedUrl = redisUrl.replace(/:([^:@]+)@/, ":****@");
-    logger.info(`Attempting to connect to Redis at ${sanitizedUrl}`);
 
     // Create Redis client with URL and additional options
     redisClient = createClient({
@@ -17,7 +15,6 @@ const connectRedis = async () => {
       socket: {
         reconnectStrategy: (retries) => {
           if (retries > 10) {
-            logger.error("Redis connection failed after 10 retries");
             return new Error("Redis connection failed after 10 retries");
           }
           return Math.min(retries * 100, 3000);
@@ -51,12 +48,10 @@ const connectRedis = async () => {
 
     // Test the connection
     await redisClient.ping();
-    logger.info("Redis connection test successful");
 
     return redisClient;
   } catch (error) {
     logger.error(`Redis connection failed: ${error.message}`);
-    logger.error(`Error stack: ${error.stack}`);
     process.exit(1);
   }
 };

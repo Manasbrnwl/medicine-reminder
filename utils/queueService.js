@@ -4,6 +4,7 @@ const Reminder = require("../src/models/Reminder");
 const { sendPushNotification } = require("./notifications");
 // const { sendReminderSMS, sendMissedDoseSMS } = require("./smsNotification");
 const { getRedisClient } = require("../config/redis");
+const { getCurrentDateTime, addHoursToDate } = require("../src/default/common");
 
 // Redis connection configuration using URL
 const redisConfig = {
@@ -82,11 +83,7 @@ reminderQueue.process(async (job) => {
     // Fetch the reminder with all necessary data
     const reminder = await Reminder.findById(reminderId)
       .populate({
-        path: "medicines.medicine",
-        populate: {
-          path: "medicineStack",
-          select: "name description category"
-        }
+        path: "medicines.medicine"
       })
       .populate("user");
 
@@ -125,16 +122,12 @@ reminderQueue.process(async (job) => {
 missedDoseQueue.process(async (job) => {
   try {
     const { reminderId } = job.data;
-    logger.info(`Processing missed dose check for reminder: ${reminderId}`);
+    // logger.info(`Processing missed dose check for reminder: ${reminderId}`);
 
     // Reload reminder to get current status
     const reminder = await Reminder.findById(reminderId)
       .populate({
-        path: "medicines.medicine",
-        populate: {
-          path: "medicineStack",
-          select: "name description category"
-        }
+        path: "medicines.medicine"
       })
       .populate("user");
 
@@ -182,9 +175,9 @@ missedDoseQueue.process(async (job) => {
         `Reminder ${reminderId} automatically marked as missed after 30 minutes of inactivity`
       );
     } else {
-      logger.info(
-        `Reminder ${reminderId} has no pending medicines, no action needed`
-      );
+      // logger.info(
+      //   `Reminder ${reminderId} has no pending medicines, no action needed`
+      // );
     }
 
     return { success: true };
@@ -203,11 +196,7 @@ recurringReminderQueue.process(async (job) => {
     // Fetch the original reminder
     const reminder = await Reminder.findById(reminderId)
       .populate({
-        path: "medicines.medicine",
-        populate: {
-          path: "medicineStack",
-          select: "name description category"
-        }
+        path: "medicines.medicine"
       })
       .populate("user");
 
@@ -608,10 +597,6 @@ async function scheduleReminder(reminderId, reminderTime, io) {
         removeOnComplete: true
       }
     );
-
-    logger.info(
-      `Scheduled reminder ${reminderId} for ${reminderTime.toISOString()}`
-    );
     return true;
   } catch (error) {
     logger.error(`Error scheduling reminder: ${error.message}`);
@@ -622,9 +607,6 @@ async function scheduleReminder(reminderId, reminderTime, io) {
 // Schedule reminders within a date range
 async function scheduleRemindersInRange(startDate, endDate, io, userId = null) {
   try {
-    logger.info(
-      `Fetching reminders between ${startDate.toISOString()} and ${endDate.toISOString()}`
-    );
 
     // Build query for reminders within date range
     const query = {
@@ -656,11 +638,6 @@ async function scheduleRemindersInRange(startDate, endDate, io, userId = null) {
       if (reminders.length < batchSize) {
         hasMore = false;
       }
-
-      logger.info(
-        `Found ${reminders.length} reminders in batch starting at ${skip}`
-      );
-
       // Schedule each reminder in the batch
       for (const reminder of reminders) {
         let reminderTime;
@@ -683,7 +660,7 @@ async function scheduleRemindersInRange(startDate, endDate, io, userId = null) {
     }
 
     logger.info(
-      `Scheduled ${totalScheduled} reminders between ${startDate.toISOString()} and ${endDate.toISOString()}`
+      `Scheduled ${totalScheduled} reminders between ${startDate} and ${endDate}`
     );
     return totalScheduled;
   } catch (error) {
@@ -695,15 +672,8 @@ async function scheduleRemindersInRange(startDate, endDate, io, userId = null) {
 // Initialize reminders for upcoming period
 async function initializeReminders(io) {
   try {
-    // Get current date
-    const now = new Date();
-
-    // Set end date to 2 days from now initially (to avoid overloading)
-    const endDate = new Date(now);
-    endDate.setDate(endDate.getDate() + 2);
-
     // Schedule reminders for the next 2 days
-    const scheduledCount = await scheduleRemindersInRange(now, endDate, io);
+    const scheduledCount = await scheduleRemindersInRange(getCurrentDateTime(), addHoursToDate(48), io);
 
     logger.info(`Initialized ${scheduledCount} reminders for the next 2 days`);
     return scheduledCount;
@@ -785,15 +755,13 @@ async function scheduleUserReminders(userId, io) {
   try {
     logger.info(`Scheduling reminders for user ${userId}`);
 
-    // Get current date
-    const now = new Date();
-
-    // Set end date to 30 days from now (to cover monthly medications)
-    const endDate = new Date(now);
-    endDate.setDate(endDate.getDate() + 30);
-
     // Schedule this user's reminders
-    const count = await scheduleRemindersInRange(now, endDate, io, userId);
+    const count = await scheduleRemindersInRange(
+      getCurrentDateTime(),
+      addHoursToDate(0.3),
+      io,
+      userId
+    );
 
     logger.info(`Scheduled ${count} reminders for user ${userId}`);
     return count;

@@ -4,6 +4,7 @@ const User = require("../src/models/User");
 const logger = require("./logger");
 const { sendPushNotification } = require("./notifications");
 const { sendReminderSMS, sendMissedDoseSMS } = require("./smsNotification");
+const { getCurrentDateTime, addHoursToDate } = require("../src/default/common");
 
 // Store all scheduled jobs
 const scheduledJobs = {};
@@ -18,7 +19,7 @@ const scheduledJobs = {};
 const scheduleRemindersInRange = async (startDate, endDate, io) => {
   try {
     logger.info(
-      `Fetching reminders between ${startDate.toISOString()} and ${endDate.toISOString()}`
+      `Fetching reminders between ${startDate} and ${endDate}`
     );
 
     // Find reminders within date range
@@ -28,11 +29,7 @@ const scheduleRemindersInRange = async (startDate, endDate, io) => {
       status: { $in: ["pending", "snoozed"] }
     })
       .populate({
-        path: "medicines.medicine",
-        populate: {
-          path: "medicineStack",
-          select: "name description category"
-        }
+        path: "medicines.medicine"
       })
       .populate("user");
 
@@ -110,9 +107,6 @@ const scheduleReminderNotification = async (reminder, io) => {
 
     // Store job reference
     scheduledJobs[jobId] = job;
-    logger.info(
-      `Scheduled reminder ${jobId} for ${reminderTime.toISOString()}`
-    );
   } catch (error) {
     logger.error(
       `Error scheduling reminder ${reminder?._id}: ${error.message}`
@@ -214,10 +208,6 @@ const scheduleMissedDoseCheck = async (reminder, io) => {
         const currentReminder = await Reminder.findById(reminder._id)
           .populate({
             path: "medicines.medicine",
-            populate: {
-              path: "medicineStack",
-              select: "name description category"
-            }
           })
           .populate("user");
 
@@ -352,10 +342,6 @@ const scheduleNextRecurrence = async (reminder, io) => {
       await Reminder.findById(savedReminder._id)
         .populate({
           path: "medicines.medicine",
-          populate: {
-            path: "medicineStack",
-            select: "name description category"
-          }
         })
         .populate("user"),
       io
@@ -483,15 +469,8 @@ const calculateNextTime = (reminder) => {
  */
 const initializeReminders = async (io) => {
   try {
-    // Get current date
-    const now = new Date();
-
-    // Set end date to 7 days from now (adjustable as needed)
-    const endDate = new Date(now);
-    endDate.setDate(endDate.getDate() + 7);
-
     // Schedule reminders in the next 7 days
-    const scheduledReminders = await scheduleRemindersInRange(now, endDate, io);
+    const scheduledReminders = await scheduleRemindersInRange(getCurrentDateTime(), addHoursToDate(24*7), io);
 
     logger.info(
       `Initialized ${scheduledReminders.length} reminders for the next 7 days`
@@ -571,11 +550,7 @@ const snoozeReminder = async (reminderId, minutes, io) => {
       { new: true }
     )
       .populate({
-        path: "medicines.medicine",
-        populate: {
-          path: "medicineStack",
-          select: "name description category"
-        }
+        path: "medicines.medicine"
       })
       .populate("user");
 
