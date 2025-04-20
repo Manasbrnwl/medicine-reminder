@@ -1,0 +1,95 @@
+2025-04-10 23:42:54:4254 [32minfo[39m: [32mInitializing active reminders...[39m
+2025-04-10 23:42:54:4254 [32minfo[39m: [32mFetching reminders between 2025-04-10T18:12:54.819Z and 2025-04-17T18:12:54.819Z[39m
+2025-04-10 23:42:55:4255 [32minfo[39m: [32mFound 0 reminders to schedule[39m
+2025-04-10 23:42:55:4255 [32minfo[39m: [32mInitialized 0 reminders for the next 7 days[39m
+2025-04-10 23:42:55:4255 [32minfo[39m: [32mReminders initialized successfully[39m
+2025-04-11 00:00:05:05 [32minfo[39m: [32mInitializing active reminders...[39m
+2025-04-11 00:00:05:05 [32minfo[39m: [32mFetching reminders between 2025-04-10T18:30:05.085Z and 2025-04-17T18:30:05.085Z[39m
+2025-04-11 00:00:05:05 [32minfo[39m: [32mFound 0 reminders to schedule[39m
+2025-04-11 00:00:05:05 [32minfo[39m: [32mInitialized 0 reminders for the next 7 days[39m
+2025-04-11 00:00:06:06 [32minfo[39m: [32mReminders initialized successfully[39m
+2025-04-11 00:00:14:014 [32minfo[39m: [32mInitializing active reminders...[39m
+2025-04-11 00:00:14:014 [32minfo[39m: [32mFetching reminders between 2025-04-10T18:30:14.904Z and 2025-04-17T18:30:14.904Z[39m
+2025-04-11 00:00:15:015 [32minfo[39m: [32mFound 0 reminders to schedule[39m
+2025-04-11 00:00:15:015 [32minfo[39m: [32mInitialized 0 reminders for the next 7 days[39m
+2025-04-11 00:00:15:015 [32minfo[39m: [32mReminders initialized successfully[39m
+2025-04-11 00:01:09:19 [32minfo[39m: [32mInitializing active reminders...[39m
+2025-04-11 00:01:09:19 [32minfo[39m: [32mFetching reminders between 2025-04-10T18:31:09.689Z and 2025-04-17T18:31:09.689Z[39m
+2025-04-11 00:01:10:110 [32minfo[39m: [32mFound 1 reminders to schedule[39m
+2025-04-11 00:01:10:110 [33mwarn[39m: [33mReminder 67f80757b9418c192d014bd5 time is in the past, skipping[39m
+2025-04-11 00:01:10:110 [32minfo[39m: [32mInitialized 1 reminders for the next 7 days[39m
+2025-04-11 00:01:10:110 [32minfo[39m: [32mReminders initialized successfully[39m
+2025-04-11 00:01:25:125 [32minfo[39m: [32mInitializing active reminders...[39m
+2025-04-11 00:01:25:125 [32minfo[39m: [32mFetching reminders between 2025-04-10T18:31:25.692Z and 2025-04-17T18:31:25.692Z[39m
+2025-04-11 00:01:26:126 [32minfo[39m: [32mFound 0 reminders to schedule[39m
+2025-04-11 00:01:26:126 [32minfo[39m: [32mInitialized 0 reminders for the next 7 days[39m
+2025-04-11 00:01:26:126 [32minfo[39m: [32mReminders initialized successfully[39m
+2025-04-11 00:01:50:150 [32minfo[39m: [32mInitializing active reminders...[39m
+2025-04-11 00:01:50:150 [32minfo[39m: [32mFetching reminders between 2025-04-10T18:31:50.781Z and 2025-04-17T18:31:50.781Z[39m
+2025-04-11 00:01:51:151 [32minfo[39m: [32mFound 1 reminders to schedule[39m
+2025-04-11 00:01:51:151 [33mwarn[39m: [33mReminder 67f80757b9418c192d014bd5 time is in the past, skipping[39m
+2025-04-11 00:01:51:151 [32minfo[39m: [32mInitialized 1 reminders for the next 7 days[39m
+2025-04-11 00:01:51:151 [32minfo[39m: [32mReminders initialized successfully[39m
+2025-04-11 00:01:54:154 [32minfo[39m: [32mInitializing active reminders...[39m
+2025-04-11 00:01:54:154 [32minfo[39m: [32mFetching reminders between 2025-04-10T18:31:54.561Z and 2025-04-17T18:31:54.561Z[39m
+2025-04-11 00:01:55:155 [32minfo[39m: [32mFound 1 reminders to schedule[39m
+2025-04-11 00:01:55:155 [33mwarn[39m: [33mReminder 67f80757b9418c192d014bd5 time is in the past, skipping[39m
+2025-04-11 00:01:55:155 [32minfo[39m: [32mInitialized 1 reminders for the next 7 days[39m
+2025-04-11 00:01:55:155 [32minfo[39m: [32mReminders initialized successfully[39m
+2025-04-11 00:03:53:353 [32minfo[39m: [32mInitializing active reminders...[39m
+2025-04-11 00:03:53:353 [32minfo[39m: [32mFetching reminders between 2025-04-10T18:33:53.167Z and 2025-04-17T18:33:53.167Z[39m
+2025-04-11 00:03:54:354 [32minfo[39m: [32mFound 1 reminders to schedule[39m
+2025-04-11 00:03:54:354 [33mwarn[39m: [33mReminder 67f80757b9418c192d014bd5 time is in the past, skipping[39m
+2025-04-11 00:03:54:354 [32minfo[39m: [32mInitialized 1 reminders for the next 7 days[39m
+2025-04-11 00:03:54:354 [32minfo[39m: [32mReminders initialized successfully[39m
+2025-04-11 00:08:41:841 [32minfo[39m: [32mInitializing active reminders...[39m
+2025-04-11 00:08:41:841 [32minfo[39m: [32mFetching reminders between 2025-04-10T18:38:41.414Z and 2025-04-17T18:38:41.414Z[39m
+2025-04-11 00:08:42:842 [32minfo[39m: [32mFound 1 reminders to schedule[39m
+2025-04-11 00:08:42:842 [31merror[39m: [31mError scheduling reminder 67f80757b9418c192d014bd5: remin is not defined[39m
+2025-04-11 00:08:42:842 [32minfo[39m: [32mInitialized 1 reminders for the next 7 days[39m
+2025-04-11 00:08:42:842 [32minfo[39m: [32mReminders initialized successfully[39m
+2025-04-11 00:08:44:844 [32minfo[39m: [32mInitializing active reminders...[39m
+2025-04-11 00:08:44:844 [32minfo[39m: [32mFetching reminders between 2025-04-10T18:38:44.091Z and 2025-04-17T18:38:44.091Z[39m
+2025-04-11 00:08:45:845 [32minfo[39m: [32mFound 1 reminders to schedule[39m
+2025-04-11 00:08:45:845 [33mwarn[39m: [33mReminder 67f80757b9418c192d014bd5 time is in the past, skipping[39m
+2025-04-11 00:08:45:845 [32minfo[39m: [32mInitialized 1 reminders for the next 7 days[39m
+2025-04-11 00:08:45:845 [32minfo[39m: [32mReminders initialized successfully[39m
+2025-04-11 00:08:48:848 [32minfo[39m: [32mInitializing active reminders...[39m
+2025-04-11 00:08:48:848 [32minfo[39m: [32mFetching reminders between 2025-04-10T18:38:48.647Z and 2025-04-17T18:38:48.647Z[39m
+2025-04-11 00:08:49:849 [32minfo[39m: [32mFound 0 reminders to schedule[39m
+2025-04-11 00:08:49:849 [32minfo[39m: [32mInitialized 0 reminders for the next 7 days[39m
+2025-04-11 00:08:49:849 [32minfo[39m: [32mReminders initialized successfully[39m
+2025-04-11 00:21:52:2152 [32minfo[39m: [32mInitializing active reminders...[39m
+2025-04-11 00:21:52:2152 [32minfo[39m: [32mFetching reminders between 2025-04-10T18:51:52.926Z and 2025-04-17T18:51:52.926Z[39m
+2025-04-11 00:21:53:2153 [32minfo[39m: [32mFound 0 reminders to schedule[39m
+2025-04-11 00:21:53:2153 [32minfo[39m: [32mInitialized 0 reminders for the next 7 days[39m
+2025-04-11 00:21:54:2154 [32minfo[39m: [32mReminders initialized successfully[39m
+2025-04-11 00:22:26:2226 [32minfo[39m: [32mInitializing active reminders...[39m
+2025-04-11 00:22:26:2226 [32minfo[39m: [32mFetching reminders between 2025-04-10T18:52:26.056Z and 2025-04-17T18:52:26.056Z[39m
+2025-04-11 00:22:26:2226 [32minfo[39m: [32mFound 0 reminders to schedule[39m
+2025-04-11 00:22:26:2226 [32minfo[39m: [32mInitialized 0 reminders for the next 7 days[39m
+2025-04-11 00:22:27:2227 [32minfo[39m: [32mReminders initialized successfully[39m
+2025-04-11 00:22:52:2252 [32minfo[39m: [32mInitializing active reminders...[39m
+2025-04-11 00:22:52:2252 [32minfo[39m: [32mFetching reminders between 2025-04-10T18:52:52.125Z and 2025-04-17T18:52:52.125Z[39m
+2025-04-11 00:22:53:2253 [32minfo[39m: [32mFound 0 reminders to schedule[39m
+2025-04-11 00:22:53:2253 [32minfo[39m: [32mInitialized 0 reminders for the next 7 days[39m
+2025-04-11 00:22:53:2253 [32minfo[39m: [32mReminders initialized successfully[39m
+2025-04-11 00:22:59:2259 [32minfo[39m: [32mInitializing active reminders...[39m
+2025-04-11 00:22:59:2259 [32minfo[39m: [32mFetching reminders between 2025-04-10T18:52:59.136Z and 2025-04-17T18:52:59.136Z[39m
+2025-04-11 00:23:00:230 [32minfo[39m: [32mFound 0 reminders to schedule[39m
+2025-04-11 00:23:00:230 [32minfo[39m: [32mInitialized 0 reminders for the next 7 days[39m
+2025-04-11 00:23:00:230 [32minfo[39m: [32mReminders initialized successfully[39m
+2025-04-13 11:32:44:3244 [32minfo[39m: [32mServer running in development mode on port 3000[39m
+2025-04-13 11:32:44:3244 [32minfo[39m: [32mInitializing active reminders...[39m
+2025-04-13 11:32:44:3244 [32minfo[39m: [32mFetching reminders between 2025-04-13T06:02:44.182Z and 2025-04-15T06:02:44.182Z[39m
+2025-04-13 11:32:45:3245 [32minfo[39m: [32mFound 0 reminders in batch starting at 0[39m
+2025-04-13 11:32:45:3245 [32minfo[39m: [32mScheduled 0 reminders between 2025-04-13T06:02:44.182Z and 2025-04-15T06:02:44.182Z[39m
+2025-04-13 11:32:45:3245 [32minfo[39m: [32mInitialized 0 reminders for the next 2 days[39m
+2025-04-13 11:32:45:3245 [32minfo[39m: [32mReminders initialized successfully (0 scheduled)[39m
+2025-04-13 11:36:02:362 [32minfo[39m: [32mServer running in development mode on port 3000[39m
+2025-04-13 11:36:02:362 [32minfo[39m: [32mInitializing active reminders...[39m
+2025-04-13 11:36:02:362 [32minfo[39m: [32mFetching reminders between 2025-04-13T06:06:02.922Z and 2025-04-15T06:06:02.922Z[39m
+2025-04-13 11:36:04:364 [32minfo[39m: [32mFound 0 reminders in batch starting at 0[39m
+2025-04-13 11:36:04:364 [32minfo[39m: [32mScheduled 0 reminders between 2025-04-13T06:06:02.922Z and 2025-04-15T06:06:02.922Z[39m
+2025-04-13 11:36:04:364 [32minfo[39m: [32mInitialized 0 reminders for the next 2 days[39m
+2025-04-13 11:36:04:364 [32minfo[39m: [32mReminders initialized successfully (0 scheduled)[39m
