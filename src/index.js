@@ -13,6 +13,7 @@ const {
   getQueuesStatus,
   setSocketIo
 } = require("../utils/queueService");
+const path = require("path");
 
 // Load env vars
 dotenv.config();
@@ -69,6 +70,8 @@ app.use("/api/subscription", require("./routes/subscriptionRoutes"));
 app.get("/", (req, res) => {
   res.send("Medicine Reminder API is running");
 });
+
+app.use("/images", express.static(path.join(__dirname, "images")))
 
 // Health check route with queue status
 app.get("/api/health", async (req, res) => {

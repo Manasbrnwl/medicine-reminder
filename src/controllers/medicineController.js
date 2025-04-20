@@ -17,16 +17,18 @@ exports.getMedicines = async (req, res) => {
     }
 
     const medicines = await Medicine.find(queryObj)
+      .select('_id dosage user')
       .populate({
         path: "medicineStack",
-        select: "name description category"
+        select: 'name id category'
       })
       .sort({ createdAt: -1 });
 
     res.json({
       success: true,
       count: medicines.length,
-      data: medicines
+      data: medicines,
+      baseURL: `${req.protocol}://${req.get("host")}/images/`
     });
   } catch (error) {
     res.status(500).json({
