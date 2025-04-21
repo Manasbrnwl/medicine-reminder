@@ -56,7 +56,8 @@ exports.getReminders = async (req, res) => {
       time: { $gt: new Date() }
     })
       .populate({
-        path: "medicines.medicine"
+        path: "medicine",
+        select: "name id category dosage instructions"
       })
       .sort({ time: 1 });
 
@@ -80,7 +81,8 @@ exports.getReminders = async (req, res) => {
 exports.getReminder = async (req, res) => {
   try {
     const reminder = await Reminder.findById(req.params.id).populate({
-      path: "medicines.medicine"
+      path: "medicine",
+      select: "name id category dosage instructions"
     });
 
     if (!reminder) {
@@ -120,14 +122,13 @@ exports.getReminder = async (req, res) => {
 exports.createReminder = async (req, res) => {
   try {
     const {
-      medicines,
+      medicine_name,
+      medicine_dosage,
+      medicine_instructions,
+      medicine_category,
       scheduleStart,
       scheduleEnd,
       frequency,
-      standardTime,
-      morningTime,
-      eveningTime,
-      afternoonTime,
       customTimes,
       repeat,
       daysOfWeek,
@@ -136,119 +137,22 @@ exports.createReminder = async (req, res) => {
       repeatUnit
     } = req.body;
 
-    // Validate that medicines is an array of medicine IDs
-    if (!Array.isArray(medicines) || medicines.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide at least one medicine"
-      });
-    }
-
-    // Check if all medicines exist and belong to the user
-    const medicineEntities = await Promise.all(
-      medicines.map((medicineId) => Medicine.findById(medicineId))
-    );
-
-    // for (let i = 0; i < medicineEntities.length; i++) {
-    //   const medicine = medicineEntities[i];
-
-    //   if (!medicine) {
-    //     return res.status(404).json({
-    //       success: false,
-    //       message: `Medicine with ID ${medicines[i]} not found`
-    //     });
-    //   }
-
-    //   if (medicine.user.toString() !== req.user.id) {
-    //     return res.status(403).json({
-    //       success: false,
-    //       message: `Not authorized to add medicine with ID ${medicines[i]} to reminder`
-    //     });
-    //   }
-    // }
-
-    // Format medicines array for the reminder
-    const medicinesArray = medicines.map((medicineId) => ({
-      medicine: medicineId,
-      status: "pending"
-    }));
-
-    // Validate frequency and required time fields
-    if (!frequency) {
-      return res.status(400).json({
-        success: false,
-        message: "Frequency is required"
-      });
-    }
-
-    // Validate times based on frequency
-    if (frequency === "once" && !standardTime) {
-      return res.status(400).json({
-        success: false,
-        message: "Standard time is required for once frequency"
-      });
-    }
-
-    if (frequency === "twice" && (!morningTime || !eveningTime)) {
-      return res.status(400).json({
-        success: false,
-        message: "Morning and evening times are required for twice frequency"
-      });
-    }
-
-    if (
-      frequency === "thrice" &&
-      (!morningTime || !afternoonTime || !eveningTime)
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Morning, afternoon, and evening times are required for thrice frequency"
-      });
-    }
-
-    if (
-      frequency === "custom" &&
-      (!customTimes || !Array.isArray(customTimes) || customTimes.length === 0)
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Custom times are required for custom frequency"
-      });
-    }
-
-    // Validate repeat settings
-    if (
-      repeat === "weekly" &&
-      (!daysOfWeek || !Array.isArray(daysOfWeek) || daysOfWeek.length === 0)
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Days of week are required for weekly repeat"
-      });
-    }
-
-    if (
-      repeat === "monthly" &&
-      (!daysOfMonth || !Array.isArray(daysOfMonth) || daysOfMonth.length === 0)
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Days of month are required for monthly repeat"
-      });
-    }
-
-    if (repeat === "custom" && (!repeatInterval || !repeatUnit)) {
-      return res.status(400).json({
-        success: false,
-        message: "Repeat interval and unit are required for custom repeat"
+    let medicine;
+    const is_medicine = await Medicine.find({ name: medicine_name });
+    if (is_medicine.length === 0) {
+      medicine = await Medicine.create({
+        name: medicine_name,
+        user: req.user.id,
+        dosage: medicine_dosage,
+        instructions: medicine_instructions,
+        category: medicine_category
       });
     }
 
     if (frequency === "once") {
       // Create reminder
       await Reminder.create({
-        medicines: medicinesArray,
+        medicine: is_medicine.length > 0 ? is_medicine[0].id : medicine.id,
         user: req.user.id,
         scheduleStart: scheduleStart || new Date(),
         scheduleEnd: scheduleEnd || null,
@@ -263,7 +167,7 @@ exports.createReminder = async (req, res) => {
       });
     } else if (frequency === "twice") {
       await Reminder.create({
-        medicines: medicinesArray,
+        medicine: is_medicine.length > 0 ? is_medicine[0].id : medicine.id,
         user: req.user.id,
         scheduleStart: scheduleStart || new Date(),
         scheduleEnd: scheduleEnd || null,
@@ -277,7 +181,7 @@ exports.createReminder = async (req, res) => {
         active: true
       });
       await Reminder.create({
-        medicines: medicinesArray,
+        medicine: is_medicine.length > 0 ? is_medicine[0].id : medicine.id,
         user: req.user.id,
         scheduleStart: scheduleStart || new Date(),
         scheduleEnd: scheduleEnd || null,
@@ -292,7 +196,7 @@ exports.createReminder = async (req, res) => {
       });
     } else if (frequency === "thrice") {
       await Reminder.create({
-        medicines: medicinesArray,
+        medicine: is_medicine.length > 0 ? is_medicine[0].id : medicine.id,
         user: req.user.id,
         scheduleStart: scheduleStart || new Date(),
         scheduleEnd: scheduleEnd || null,
@@ -306,7 +210,7 @@ exports.createReminder = async (req, res) => {
         active: true
       });
       await Reminder.create({
-        medicines: medicinesArray,
+        medicine: is_medicine.length > 0 ? is_medicine[0].id : medicine.id,
         user: req.user.id,
         scheduleStart: scheduleStart || new Date(),
         scheduleEnd: scheduleEnd || null,
@@ -320,7 +224,7 @@ exports.createReminder = async (req, res) => {
         active: true
       });
       await Reminder.create({
-        medicines: medicinesArray,
+        medicine: is_medicine.length > 0 ? is_medicine[0].id : medicine.id,
         user: req.user.id,
         scheduleStart: scheduleStart || new Date(),
         scheduleEnd: scheduleEnd || null,
@@ -338,7 +242,7 @@ exports.createReminder = async (req, res) => {
       await Promise.all(
         customTimes.map(async (time) => {
           await Reminder.create({
-            medicines: medicinesArray,
+            medicine: is_medicine.length > 0 ? is_medicine[0].id : medicine.id,
             user: req.user.id,
             scheduleStart: scheduleStart || new Date(),
             scheduleEnd: scheduleEnd || null,
@@ -355,7 +259,7 @@ exports.createReminder = async (req, res) => {
       );
     } else {
       await Reminder.create({
-        medicines: medicinesArray,
+        medicine: is_medicine.length > 0 ? is_medicine[0].id : medicine.id,
         user: req.user.id,
         scheduleStart: scheduleStart || new Date(),
         scheduleEnd: scheduleEnd || null,
@@ -596,9 +500,10 @@ exports.deleteReminder = async (req, res) => {
 // @access  Private
 exports.markMedicineAsTaken = async (req, res) => {
   try {
-    const { id, medicineIndex } = req.params;
+    const { id } = req.params;
     const reminder = await Reminder.findById(id).populate({
-      path: "medicines.medicine"
+      path: "medicine",
+      select: "name id category dosage instructions"
     });
 
     if (!reminder) {
@@ -618,57 +523,8 @@ exports.markMedicineAsTaken = async (req, res) => {
         message: "Not authorized to update this reminder"
       });
     }
-
-    // Check if the medicine index is valid
-    if (medicineIndex < 0 || medicineIndex >= reminder.medicines.length) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid medicine index"
-      });
-    }
-
-    // Check if this medicine was automatically marked as missed
-    const wasAutomaticallyMissed =
-      reminder.status === "missed" &&
-      reminder.missedAt &&
-      reminder.medicines[medicineIndex].status === "missed";
-
-    // Mark the specific medicine as taken
-    reminder.medicines[medicineIndex].status = "taken";
-    reminder.medicines[medicineIndex].markedBy = req.user.id;
-    reminder.medicines[medicineIndex].markedAt = new Date();
-
-    // Update the reminder status based on medicines
-    const allMedicineStatuses = reminder.medicines.map((m) => m.status);
-    if (allMedicineStatuses.every((status) => status === "taken")) {
-      reminder.status = "completed";
-      // If it was automatically missed but now all taken, clear the missedAt
-      if (reminder.missedAt) {
-        reminder.missedAt = undefined;
-      }
-    } else if (allMedicineStatuses.some((status) => status === "taken")) {
-      if (allMedicineStatuses.some((status) => status === "missed")) {
-        reminder.status = "partially_completed";
-      } else {
-        reminder.status = "partially_completed";
-        // If it was automatically missed but now partially taken, clear the missedAt
-        if (reminder.missedAt) {
-          reminder.missedAt = undefined;
-        }
-      }
-    }
-
+    reminder.status = "taken";
     await reminder.save();
-
-    // If this was automatically marked as missed, add a message
-    if (wasAutomaticallyMissed) {
-      return res.json({
-        success: true,
-        message:
-          "Medicine marked as taken. Note: This was previously automatically marked as missed.",
-        data: reminder
-      });
-    }
 
     res.json({
       success: true,
@@ -710,26 +566,7 @@ exports.markMedicineAsMissed = async (req, res) => {
         message: "Not authorized to update this reminder"
       });
     }
-
-    // Check if the medicine index is valid
-    if (medicineIndex < 0 || medicineIndex >= reminder.medicines.length) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid medicine index"
-      });
-    }
-
-    // Mark the specific medicine as missed
-    reminder.medicines[medicineIndex].status = "missed";
-    reminder.medicines[medicineIndex].markedBy = req.user.id;
-    reminder.medicines[medicineIndex].markedAt = new Date();
-
-    // Update the reminder status
-    const allMedicineStatuses = reminder.medicines.map((m) => m.status);
-    if (allMedicineStatuses.some((status) => status === "missed")) {
-      reminder.status = "missed";
-    }
-
+    reminder.status = "missed";
     await reminder.save();
 
     res.json({
@@ -1295,7 +1132,8 @@ exports.getRemindersWithMedicineDetails = async (req, res) => {
       time: { $gte: startOfDay, $lte: endOfDay }
     })
       .populate({
-        path: "medicines.medicine"
+        path: "medicine",
+        select: "name category dosage instructions"
       })
       .sort({ time: 1 });
 
@@ -1303,13 +1141,10 @@ exports.getRemindersWithMedicineDetails = async (req, res) => {
     const formattedReminders = reminders.map((reminder) => {
       return {
         reminder_id: reminder._id,
-        time: reminder.time,
+        time: reminder.time.toISOString().split('T')[1].split('.')[0],
         status: reminder.status,
-        medicines: reminder.medicines.map((med) => ({
-          medicine_name: med.medicine?.name || "Unknown",
-          medicine_category: med.medicine?.category || "Unknown",
-          medicine_status: med.status
-        }))
+        medicine_name: reminder.medicine?.name || "Unknown",
+        medicine_category: reminder.medicine?.category || "Unknown"
       };
     });
 

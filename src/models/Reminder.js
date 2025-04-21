@@ -1,27 +1,11 @@
 const mongoose = require("mongoose");
 
 const ReminderSchema = new mongoose.Schema({
-  medicines: [
-    {
-      medicine: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "MedicineStack",
-        required: true
-      },
-      status: {
-        type: String,
-        enum: ["pending", "taken", "missed", "skipped"],
-        default: "pending"
-      },
-      markedBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User"
-      },
-      markedAt: {
-        type: Date
-      }
-    }
-  ],
+  medicine: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Medicine",
+    required: true
+  },
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
@@ -46,33 +30,6 @@ const ReminderSchema = new mongoose.Schema({
     enum: ["once", "twice", "thrice", "custom"],
     required: true
   },
-  // For 'once' frequency
-  standardTime: {
-    type: Date
-  },
-  // For 'twice' frequency (morning and evening)
-  morningTime: {
-    type: Date
-  },
-  eveningTime: {
-    type: Date
-  },
-  // For 'thrice' frequency (morning, afternoon, evening)
-  afternoonTime: {
-    type: Date
-  },
-  // For 'custom' frequency
-  customTimes: [
-    {
-      time: {
-        type: Date
-      },
-      enabled: {
-        type: Boolean,
-        default: true
-      }
-    }
-  ],
   // For upcoming scheduled instance
   time: {
     type: Date,

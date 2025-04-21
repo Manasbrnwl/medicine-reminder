@@ -62,7 +62,6 @@ app.set("io", io);
 // Routes
 app.use("/api/users", require("./routes/userRoutes"));
 app.use("/api/medicines", require("./routes/medicineRoutes"));
-app.use("/api/medicine-stack", require("./routes/medicineStackRoutes"));
 app.use("/api/reminders", require("./routes/reminderRoutes"));
 app.use("/api/subscription", require("./routes/subscriptionRoutes"));
 
@@ -71,7 +70,7 @@ app.get("/", (req, res) => {
   res.send("Medicine Reminder API is running");
 });
 
-app.use("/images", express.static(path.join(__dirname, "images")))
+app.use("/images", express.static(path.join(__dirname, "images")));
 
 // Health check route with queue status
 app.get("/api/health", async (req, res) => {
