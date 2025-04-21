@@ -256,25 +256,20 @@ async function sendNotifications(reminder, io) {
 // Format notification object for socket.io
 function formatNotification(reminder) {
   // Extract medicine names
-  const medicineNames = reminder.medicines
-    .map((med) => med.medicine?.medicineStack?.name || "unknown medicine")
-    .join(", ");
+  const medicineNames = reminder.medicine?.name || "unknown medicine";
 
   // Format time
-  const timeFormatted = new Date(reminder.time).toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit"
-  });
+  const timeFormatted = new Date(reminder.time)
+    .toISOString()
+    .split("T")[1]
+    .split(".")[0];
 
   return {
     title: `Medicine Reminder`,
     body: `It's time to take ${medicineNames} at ${timeFormatted}`,
     data: {
       reminderId: reminder._id,
-      medicines: reminder.medicines.map((med) => ({
-        id: med.medicine?._id,
-        name: med.medicine?.medicineStack?.name
-      })),
+      medicine_name: reminder.medicine?.name || "unknown medicine",
       time: reminder.time
     }
   };
@@ -342,15 +337,11 @@ async function notifyParent(reminder, io) {
 
     const notification = {
       title: "Missed Dose Alert",
-      body: `${
-        reminder.user.name
-      } has ${isAutomatic}missed their dose of ${reminder.medicines
-        .map((med) => med.medicine?.medicineStack?.name)
-        .join(", ")}`,
+      body: `${reminder?.user?.name} has ${isAutomatic}missed their dose of ${reminder?.medicine?.name}`,
       data: {
         reminderId: reminder._id,
         dependentId: reminder.user._id,
-        time: reminder.time,
+        time: reminder.time.toISOString().split("T")[1].split(".")[0],
         automatic: !!reminder.missedAt
       }
     };
@@ -607,11 +598,12 @@ async function scheduleReminder(reminderId, reminderTime, io) {
 // Schedule reminders within a date range
 async function scheduleRemindersInRange(startDate, endDate, io, userId = null) {
   try {
-
     // Add 5 hours and 30 minutes (19800000 ms) to both dates
-    startDate = new Date(new Date(startDate).getTime() + (5 * 60 + 30) * 60 * 1000);
+    startDate = new Date(
+      new Date(startDate).getTime() + (5 * 60 + 30) * 60 * 1000
+    );
     endDate = new Date(new Date(endDate).getTime() + (5 * 60 + 30) * 60 * 1000);
-    
+
     // Build query for reminders within date range
     const query = {
       time: { $gte: startDate, $lte: endDate },
@@ -677,7 +669,11 @@ async function scheduleRemindersInRange(startDate, endDate, io, userId = null) {
 async function initializeReminders(io) {
   try {
     // Schedule reminders for the next 2 days
-    const scheduledCount = await scheduleRemindersInRange(getCurrentDateTime(), addHoursToDate(48), io);
+    const scheduledCount = await scheduleRemindersInRange(
+      getCurrentDateTime(),
+      addHoursToDate(48),
+      io
+    );
 
     logger.info(`Initialized ${scheduledCount} reminders for the next 2 days`);
     return scheduledCount;

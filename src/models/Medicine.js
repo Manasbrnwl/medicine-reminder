@@ -2,9 +2,8 @@ const mongoose = require("mongoose");
 
 const MedicineSchema = new mongoose.Schema(
   {
-    medicineStack: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "MedicineStack",
+    name: {
+      type: String,
       required: true
     },
     user: {
@@ -20,16 +19,9 @@ const MedicineSchema = new mongoose.Schema(
       type: String,
       trim: true
     },
-    startDate: {
-      type: Date,
-      default: Date.now
-    },
-    endDate: {
-      type: Date
-    },
-    active: {
-      type: Boolean,
-      default: true
+    category: {
+      type: String,
+      required: true
     },
     createdAt: {
       type: Date,
