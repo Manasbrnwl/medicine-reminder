@@ -1,67 +1,46 @@
 function getCurrentDateTime() {
-  let now = new Date();
-
-  // Convert to IST (Asia/Kolkata) manually
-  let istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
-  let istTime = new Date(now.getTime());
-
-  let year = istTime.getFullYear();
-  let month = String(istTime.getMonth() + 1).padStart(2, "0");
-  let day = String(istTime.getDate()).padStart(2, "0");
-  let hours = String(istTime.getHours()).padStart(2, "0");
-  let minutes = String(istTime.getMinutes()).padStart(2, "0");
-  let seconds = String(istTime.getSeconds()).padStart(2, "0");
-
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+  // Return the current date/time as a Date object
+  return new Date();
 }
 
 function convertIntoISTTime(time) {
-  let now = new Date(time);
-  let istTime = new Date(now.getTime());
-  let year = istTime.getFullYear();
-  let month = String(istTime.getMonth() + 1).padStart(2, "0");
-  let day = String(istTime.getDate()).padStart(2, "0");
-  let hours = String(istTime.getHours()).padStart(2, "0");
-  let minutes = String(istTime.getMinutes()).padStart(2, "0");
-  let seconds = String(istTime.getSeconds()).padStart(2, "0");
-
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+  // Convert time to a Date object if it's not already
+  return new Date(time);
 }
 
 function addHoursToDate(hoursToAdd) {
-  let now = new Date();
+  // Get current date
+  const now = new Date();
 
-  // Convert to IST manually
-  let istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
-  let istTime = new Date(now.getTime());
+  // Create a new date by adding the specified hours
+  const futureDate = new Date(now);
+  futureDate.setHours(futureDate.getHours() + hoursToAdd);
 
-  istTime.setHours(istTime.getHours() + hoursToAdd);
-
-  let year = istTime.getFullYear();
-  let month = String(istTime.getMonth() + 1).padStart(2, "0");
-  let day = String(istTime.getDate()).padStart(2, "0");
-  let hours = String(istTime.getHours()).padStart(2, "0");
-  let minutes = String(istTime.getMinutes()).padStart(2, "0");
-  let seconds = String(istTime.getSeconds()).padStart(2, "0");
-
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+  // Return as Date object
+  return futureDate;
 }
 
-function subtractHoursToDate(hoursToAdd) {
-  let now = new Date();
+function subtractHoursToDate(hoursToSubtract) {
+  // Get current date
+  const now = new Date();
 
-  // Convert to IST manually
-  let istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
-  let istTime = new Date(now.getTime());
+  // Create a new date by subtracting the specified hours
+  const pastDate = new Date(now);
+  pastDate.setHours(pastDate.getHours() - hoursToSubtract);
 
-  istTime.setHours(istTime.getHours() - hoursToAdd);
+  // Return as Date object
+  return pastDate;
+}
 
-  let year = istTime.getFullYear();
-  let month = String(istTime.getMonth() + 1).padStart(2, "0");
-  let day = String(istTime.getDate()).padStart(2, "0");
-  let hours = String(istTime.getHours()).padStart(2, "0");
-  let minutes = String(istTime.getMinutes()).padStart(2, "0");
-  let seconds = String(istTime.getSeconds()).padStart(2, "0");
+// Format a date to ISO string format for display purposes
+function formatDateToString(date) {
+  const dateObj = new Date(date);
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+  const day = String(dateObj.getDate()).padStart(2, "0");
+  const hours = String(dateObj.getHours()).padStart(2, "0");
+  const minutes = String(dateObj.getMinutes()).padStart(2, "0");
+  const seconds = String(dateObj.getSeconds()).padStart(2, "0");
 
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
 }
@@ -70,5 +49,6 @@ module.exports = {
   getCurrentDateTime,
   convertIntoISTTime,
   addHoursToDate,
-  subtractHoursToDate
+  subtractHoursToDate,
+  formatDateToString
 };

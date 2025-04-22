@@ -2,7 +2,7 @@ const Bull = require("bull");
 const logger = require("./logger");
 const Reminder = require("../src/models/Reminder");
 const { sendPushNotification } = require("./notifications");
-// const { sendReminderSMS, sendMissedDoseSMS } = require("./smsNotification");
+const { sendReminderSMS, sendMissedDoseSMS } = require("./smsNotification");
 const { getRedisClient } = require("../config/redis");
 const { getCurrentDateTime, addHoursToDate } = require("../src/default/common");
 
@@ -71,7 +71,7 @@ const initializeQueues = () => {
   }
 };
 
-// Initialize queues
+// Initialize queues immediately
 initializeQueues();
 
 // Process reminder notifications
@@ -83,7 +83,8 @@ reminderQueue.process(async (job) => {
     // Fetch the reminder with all necessary data
     const reminder = await Reminder.findById(reminderId)
       .populate({
-        path: "medicines.medicine"
+        path: "medicine",
+        select: "name id category dosage instructions"
       })
       .populate("user");
 
@@ -127,7 +128,8 @@ missedDoseQueue.process(async (job) => {
     // Reload reminder to get current status
     const reminder = await Reminder.findById(reminderId)
       .populate({
-        path: "medicines.medicine"
+        path: "medicine",
+        select: "name id category dosage instructions"
       })
       .populate("user");
 
@@ -139,30 +141,16 @@ missedDoseQueue.process(async (job) => {
     }
 
     // Check if any medicines are still pending
-    const hasPendingMedicines = reminder.medicines.some(
-      (med) => med.status === "pending"
-    );
+    const hasPendingMedicines = reminder.status === "pending";
 
     if (hasPendingMedicines) {
       logger.info(
         `Reminder ${reminderId} has pending medicines, marking as missed`
       );
 
-      // Update individual medicines to missed status
-      const updatedMedicines = reminder.medicines.map((med) => {
-        if (med.status === "pending") {
-          return {
-            ...med.toObject(),
-            status: "missed"
-          };
-        }
-        return med;
-      });
-
       // Mark reminder as missed
       await Reminder.findByIdAndUpdate(reminderId, {
         status: "missed",
-        medicines: updatedMedicines,
         missedAt: new Date()
       });
 
@@ -196,7 +184,8 @@ recurringReminderQueue.process(async (job) => {
     // Fetch the original reminder
     const reminder = await Reminder.findById(reminderId)
       .populate({
-        path: "medicines.medicine"
+        path: "medicine",
+        select: "name id category dosage instructions"
       })
       .populate("user");
 
@@ -208,7 +197,7 @@ recurringReminderQueue.process(async (job) => {
     }
 
     // Create next occurrence based on reminder pattern
-    const result = await createNextOccurrence(reminder, globalIo);
+    // const result = await createNextOccurrence(reminder, globalIo);
     return { success: true, nextReminderId: result?.reminderId };
   } catch (error) {
     logger.error(`Error creating recurring reminder: ${error.message}`);
@@ -234,10 +223,10 @@ async function sendNotifications(reminder, io) {
       logger.info(`Push notification sent to user ${user._id}`);
     }
 
-    // Send SMS notification - DISABLED
+    // Send SMS notification if enabled
     if (user.notificationPreferences?.sms && user.phone) {
-      // await sendReminderSMS(user, reminder);
-      logger.info(`SMS notification to ${user.phone} is disabled`);
+      await sendReminderSMS(user, reminder);
+      logger.info(`SMS notification sent to ${user.phone}`);
     }
 
     // Update reminder status
@@ -255,24 +244,40 @@ async function sendNotifications(reminder, io) {
 
 // Format notification object for socket.io
 function formatNotification(reminder) {
-  // Extract medicine names
-  const medicineNames = reminder.medicine?.name || "unknown medicine";
+  try {
+    // Extract medicine names
+    const medicineNames = reminder.medicine?.name;
 
-  // Format time
-  const timeFormatted = new Date(reminder.time)
-    .toISOString()
-    .split("T")[1]
-    .split(".")[0];
+    // Format time
+    const time = new Date(reminder.time);
+    const timeFormatted = time.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit"
+    });
 
-  return {
-    title: `Medicine Reminder`,
-    body: `It's time to take ${medicineNames} at ${timeFormatted}`,
-    data: {
-      reminderId: reminder._id,
-      medicine_name: reminder.medicine?.name || "unknown medicine",
-      time: reminder.time
-    }
-  };
+    return {
+      title: `Medicine Reminder`,
+      body: `It's time to take ${medicineNames} at ${timeFormatted}`,
+      data: {
+        reminderId: reminder._id.toString(),
+        medicines: {
+          id: reminder.medicine?._id.toString(),
+          name: reminder.medicine?.name || "unknown medication",
+          dosage: reminder.medicine?.dosage
+        },
+        time: time.toISOString(),
+        timeFormatted: timeFormatted,
+        user: reminder.user?._id.toString()
+      }
+    };
+  } catch (error) {
+    logger.error(`Error formatting notification: ${error.message}`);
+    return {
+      title: "Medicine Reminder",
+      body: "It's time to take your medication",
+      data: { reminderId: reminder._id.toString() }
+    };
+  }
 }
 
 // Schedule a check for missed doses
@@ -284,11 +289,40 @@ async function scheduleMissedDoseCheck(reminder, io) {
 
     // Only schedule if check time is in the future
     const now = new Date();
-    if (checkTime <= now) {
-      logger.warn(
-        `Missed dose check time for reminder ${reminder._id} is in the past, skipping`
+    const nowPlusBuffer = new Date(now.getTime() + 60 * 1000); // Add 1 minute buffer
+
+    if (checkTime <= nowPlusBuffer) {
+      // If check time is too close or in the past, schedule for 30 minutes from now
+      const adjustedCheckTime = new Date(now.getTime() + 30 * 60 * 1000);
+      logger.info(
+        `Missed dose check time for reminder ${
+          reminder._id
+        } adjusted to ${adjustedCheckTime.toISOString()}`
       );
-      return false;
+
+      // Calculate delay in milliseconds (30 minutes)
+      const delay = 30 * 60 * 1000;
+
+      // Add to missed dose queue with delay
+      await missedDoseQueue.add(
+        {
+          reminderId: reminder._id.toString()
+        },
+        {
+          delay,
+          attempts: 3,
+          backoff: {
+            type: "exponential",
+            delay: 60000 // 1 minute
+          },
+          removeOnComplete: true
+        }
+      );
+
+      logger.info(
+        `Scheduled missed dose check for reminder ${reminder._id} in 30 minutes from now`
+      );
+      return true;
     }
 
     // Calculate delay in milliseconds
@@ -335,9 +369,12 @@ async function notifyParent(reminder, io) {
     // Format notification for parent
     const isAutomatic = reminder.missedAt ? "automatically " : "";
 
+    // Prepare notification data
+    const medicineNames = reminder.medicine?.name;
+
     const notification = {
       title: "Missed Dose Alert",
-      body: `${reminder?.user?.name} has ${isAutomatic}missed their dose of ${reminder?.medicine?.name}`,
+      body: `${reminder?.user?.name} has ${isAutomatic}missed their dose of ${medicineNames}`,
       data: {
         reminderId: reminder._id,
         dependentId: reminder.user._id,
@@ -349,12 +386,13 @@ async function notifyParent(reminder, io) {
     // Send push notification to parent
     if (parent.notificationPreferences?.push) {
       sendPushNotification(io, parent._id.toString(), notification);
+      logger.info(`Push notification sent to parent ${parent._id}`);
     }
 
-    // Send SMS to parent - DISABLED
+    // Send SMS to parent if enabled
     if (parent.notificationPreferences?.sms && parent.phone) {
-      // await sendMissedDoseSMS(parent, reminder);
-      logger.info(`SMS notification to parent ${parent.phone} is disabled`);
+      await sendMissedDoseSMS(parent, reminder);
+      logger.info(`SMS notification sent to parent ${parent.phone}`);
     }
 
     // Update reminder to indicate parent was notified
@@ -416,14 +454,8 @@ async function createNextOccurrence(reminder, io) {
       return null;
     }
 
-    // Create new reminder for next occurrence
-    const medicinesArray = reminder.medicines.map((med) => ({
-      medicine: med._id,
-      status: "pending"
-    }));
-
     const newReminder = new Reminder({
-      medicines: medicinesArray,
+      medicine: reminder.medicine.id,
       user: reminder.user._id,
       scheduleStart: reminder.scheduleStart,
       scheduleEnd: reminder.scheduleEnd,
@@ -598,11 +630,13 @@ async function scheduleReminder(reminderId, reminderTime, io) {
 // Schedule reminders within a date range
 async function scheduleRemindersInRange(startDate, endDate, io, userId = null) {
   try {
-    // Add 5 hours and 30 minutes (19800000 ms) to both dates
-    startDate = new Date(
-      new Date(startDate).getTime() + (5 * 60 + 30) * 60 * 1000
+    // Convert to Date objects if they're not already
+    startDate = new Date(startDate);
+    endDate = new Date(endDate);
+
+    logger.info(
+      `Scheduling reminders between ${startDate.toISOString()} and ${endDate.toISOString()}`
     );
-    endDate = new Date(new Date(endDate).getTime() + (5 * 60 + 30) * 60 * 1000);
 
     // Build query for reminders within date range
     const query = {
@@ -614,6 +648,7 @@ async function scheduleRemindersInRange(startDate, endDate, io, userId = null) {
     // Add user filter if provided
     if (userId) {
       query.user = userId;
+      logger.info(`Filtering reminders for user: ${userId}`);
     }
 
     // Process reminders in batches to avoid memory issues
@@ -621,6 +656,7 @@ async function scheduleRemindersInRange(startDate, endDate, io, userId = null) {
     let skip = 0;
     let hasMore = true;
     let totalScheduled = 0;
+    let totalFound = 0;
 
     // Process in batches
     while (hasMore) {
@@ -631,9 +667,16 @@ async function scheduleRemindersInRange(startDate, endDate, io, userId = null) {
         .limit(batchSize)
         .lean();
 
+      totalFound += reminders.length;
+
       if (reminders.length < batchSize) {
         hasMore = false;
       }
+
+      logger.info(
+        `Found ${reminders.length} reminders in batch, processing...`
+      );
+
       // Schedule each reminder in the batch
       for (const reminder of reminders) {
         let reminderTime;
@@ -649,6 +692,17 @@ async function scheduleRemindersInRange(startDate, endDate, io, userId = null) {
         if (reminderTime > new Date()) {
           await scheduleReminder(reminder._id, reminderTime, io);
           totalScheduled++;
+          logger.debug(
+            `Scheduled reminder ${
+              reminder._id
+            } for ${reminderTime.toISOString()}`
+          );
+        } else {
+          logger.warn(
+            `Reminder ${
+              reminder._id
+            } time ${reminderTime.toISOString()} is in the past, skipping`
+          );
         }
       }
 
@@ -656,11 +710,12 @@ async function scheduleRemindersInRange(startDate, endDate, io, userId = null) {
     }
 
     logger.info(
-      `Scheduled ${totalScheduled} reminders between ${startDate} and ${endDate}`
+      `Found ${totalFound} reminders, scheduled ${totalScheduled} reminders between ${startDate.toISOString()} and ${endDate.toISOString()}`
     );
     return totalScheduled;
   } catch (error) {
     logger.error(`Error scheduling reminders in range: ${error.message}`);
+    logger.error(`Error stack: ${error.stack}`);
     return 0;
   }
 }
@@ -668,6 +723,8 @@ async function scheduleRemindersInRange(startDate, endDate, io, userId = null) {
 // Initialize reminders for upcoming period
 async function initializeReminders(io) {
   try {
+    logger.info("Starting to initialize reminders...");
+
     // Schedule reminders for the next 2 days
     const scheduledCount = await scheduleRemindersInRange(
       getCurrentDateTime(),
@@ -679,6 +736,7 @@ async function initializeReminders(io) {
     return scheduledCount;
   } catch (error) {
     logger.error(`Error initializing reminders: ${error.message}`);
+    logger.error(`Error stack: ${error.stack}`);
     return 0;
   }
 }
@@ -785,5 +843,6 @@ module.exports = {
   pauseQueues,
   resumeQueues,
   getQueuesStatus,
-  setSocketIo
+  setSocketIo,
+  initializeQueues
 };

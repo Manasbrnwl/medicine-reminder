@@ -293,16 +293,14 @@ exports.createReminder = async (req, res) => {
 exports.updateReminder = async (req, res) => {
   try {
     const {
-      medicines,
+      medicine_name,
+      medicine_dosage,
+      medicine_category,
+      medicine_instructions,
       scheduleStart,
       scheduleEnd,
       active,
       frequency,
-      standardTime,
-      morningTime,
-      eveningTime,
-      afternoonTime,
-      customTimes,
       repeat,
       daysOfWeek,
       daysOfMonth,
@@ -319,6 +317,18 @@ exports.updateReminder = async (req, res) => {
       });
     }
 
+    let medicine;
+    const is_medicine = await Medicine.find({ name: medicine_name });
+    if (is_medicine.length === 0) {
+      medicine = await Medicine.create({
+        name: medicine_name,
+        user: req.user.id,
+        dosage: medicine_dosage,
+        instructions: medicine_instructions,
+        category: medicine_category
+      });
+    }
+
     // Check if user owns the reminder
     if (reminder.user.toString() !== req.user.id) {
       return res.status(403).json({
@@ -327,111 +337,19 @@ exports.updateReminder = async (req, res) => {
       });
     }
 
-    // Handle medicines update if provided
-    let medicinesArray = reminder.medicines;
-    if (medicines) {
-      // Validate that medicines is an array of medicine IDs
-      if (!Array.isArray(medicines) || medicines.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: "Please provide at least one medicine"
-        });
-      }
-
-      // Check if all medicines exist and belong to the user
-      const medicineEntities = await Promise.all(
-        medicines.map((medicineId) => Medicine.findById(medicineId))
-      );
-
-      for (let i = 0; i < medicineEntities.length; i++) {
-        const medicine = medicineEntities[i];
-
-        if (!medicine) {
-          return res.status(404).json({
-            success: false,
-            message: `Medicine with ID ${medicines[i]} not found`
-          });
-        }
-
-        if (medicine.user.toString() !== req.user.id) {
-          return res.status(403).json({
-            success: false,
-            message: `Not authorized to add medicine with ID ${medicines[i]} to reminder`
-          });
-        }
-      }
-
-      // Format medicines array for the reminder
-      medicinesArray = medicines.map((medicineId) => {
-        // Check if medicine already exists in the reminder
-        const existing = reminder.medicines.find(
-          (m) => m.medicine.toString() === medicineId
-        );
-        if (existing) {
-          return existing;
-        }
-        return {
-          medicine: medicineId,
-          status: "pending"
-        };
-      });
-    }
-
     // Calculate next time if frequency or times are updated
     let nextTime = reminder.time;
-
-    if (frequency) {
-      if (frequency === "once" && standardTime) {
-        nextTime = new Date(standardTime);
-      } else if (frequency === "twice" && morningTime && eveningTime) {
-        // Get the earlier of morning or evening time
-        const morning = new Date(morningTime);
-        const evening = new Date(eveningTime);
-        nextTime = morning < evening ? morning : evening;
-      } else if (
-        frequency === "thrice" &&
-        morningTime &&
-        afternoonTime &&
-        eveningTime
-      ) {
-        // Get the earliest of morning, afternoon, or evening
-        const morning = new Date(morningTime);
-        const afternoon = new Date(afternoonTime);
-        const evening = new Date(eveningTime);
-        nextTime = Math.min(morning, afternoon, evening);
-      } else if (
-        frequency === "custom" &&
-        customTimes &&
-        customTimes.length > 0
-      ) {
-        // Sort custom times and get the earliest
-        const sortedTimes = [...customTimes].sort(
-          (a, b) => new Date(a.time) - new Date(b.time)
-        );
-        nextTime = new Date(sortedTimes[0].time);
-      }
-    }
 
     // Update the reminder
     reminder = await Reminder.findByIdAndUpdate(
       req.params.id,
       {
-        medicines: medicinesArray,
+        medicines: medicine || reminder.medicine,
         scheduleStart: scheduleStart || reminder.scheduleStart,
         scheduleEnd:
           scheduleEnd !== undefined ? scheduleEnd : reminder.scheduleEnd,
         active: active !== undefined ? active : reminder.active,
         frequency: frequency || reminder.frequency,
-        standardTime:
-          standardTime !== undefined ? standardTime : reminder.standardTime,
-        morningTime:
-          morningTime !== undefined ? morningTime : reminder.morningTime,
-        eveningTime:
-          eveningTime !== undefined ? eveningTime : reminder.eveningTime,
-        afternoonTime:
-          afternoonTime !== undefined ? afternoonTime : reminder.afternoonTime,
-        customTimes:
-          customTimes !== undefined ? customTimes : reminder.customTimes,
         time: nextTime,
         repeat: repeat || reminder.repeat,
         daysOfWeek: daysOfWeek !== undefined ? daysOfWeek : reminder.daysOfWeek,
@@ -442,7 +360,8 @@ exports.updateReminder = async (req, res) => {
       },
       { new: true, runValidators: true }
     ).populate({
-      path: "medicines.medicine"
+      path: "medicine",
+      select: "name id category dosage instructions"
     });
 
     res.json({
@@ -546,7 +465,8 @@ exports.markMedicineAsMissed = async (req, res) => {
   try {
     const { id, medicineIndex } = req.params;
     const reminder = await Reminder.findById(id).populate({
-      path: "medicines.medicine"
+      path: "medicine",
+      select: "name id category dosage instructions"
     });
 
     if (!reminder) {
@@ -630,7 +550,8 @@ exports.snoozeReminder = async (req, res) => {
       },
       { new: true }
     ).populate({
-      path: "medicines.medicine"
+      path: "medicine",
+      select: "name id category dosage instructions"
     });
 
     if (!updatedReminder) {
@@ -691,7 +612,8 @@ exports.getDependentReminders = async (req, res) => {
     // Execute query
     const reminders = await Reminder.find(queryObj)
       .populate({
-        path: "medicines.medicine"
+        path: "medicine",
+        select: "name id category dosage instructions"
       })
       .sort({ time: 1 });
 
@@ -775,7 +697,8 @@ exports.createReminderForDependent = async (req, res) => {
 
     // Populate the created reminder for response
     const populatedReminder = await Reminder.findById(reminder._id).populate({
-      path: "medicines.medicine"
+      path: "medicine",
+      select: "name id category dosage instructions"
     });
 
     res.status(201).json({
@@ -1141,7 +1064,7 @@ exports.getRemindersWithMedicineDetails = async (req, res) => {
     const formattedReminders = reminders.map((reminder) => {
       return {
         reminder_id: reminder._id,
-        time: reminder.time.toISOString().split('T')[1].split('.')[0],
+        time: reminder.time.toISOString().split("T")[1].split(".")[0],
         status: reminder.status,
         medicine_name: reminder.medicine?.name || "Unknown",
         medicine_category: reminder.medicine?.category || "Unknown"

@@ -18,9 +18,7 @@ const scheduledJobs = {};
  */
 const scheduleRemindersInRange = async (startDate, endDate, io) => {
   try {
-    logger.info(
-      `Fetching reminders between ${startDate} and ${endDate}`
-    );
+    logger.info(`Fetching reminders between ${startDate} and ${endDate}`);
 
     // Find reminders within date range
     const reminders = await Reminder.find({
@@ -29,7 +27,7 @@ const scheduleRemindersInRange = async (startDate, endDate, io) => {
       status: { $in: ["pending", "snoozed"] }
     })
       .populate({
-        path: "medicines.medicine"
+        path: "medicine"
       })
       .populate("user");
 
@@ -159,9 +157,7 @@ const sendNotifications = async (reminder, io) => {
  */
 const formatNotification = (reminder) => {
   // Extract medicine names
-  const medicineNames = reminder.medicines
-    .map((med) => med.medicine?.medicineStack?.name || "unknown medicine")
-    .join(", ");
+  const medicineNames = reminder.medicine?.name;
 
   // Format time
   const timeFormatted = new Date(reminder.time).toLocaleTimeString("en-US", {
@@ -174,10 +170,7 @@ const formatNotification = (reminder) => {
     body: `It's time to take ${medicineNames} at ${timeFormatted}`,
     data: {
       reminderId: reminder._id,
-      medicines: reminder.medicines.map((med) => ({
-        id: med.medicine?._id,
-        name: med.medicine?.medicineStack?.name
-      })),
+      medicines: medicineNames,
       time: reminder.time
     }
   };
@@ -207,17 +200,15 @@ const scheduleMissedDoseCheck = async (reminder, io) => {
         // Reload reminder to get current status
         const currentReminder = await Reminder.findById(reminder._id)
           .populate({
-            path: "medicines.medicine",
+            path: "medicine",
+            select: "name id category dosage instructions"
           })
           .populate("user");
 
         if (!currentReminder) return;
 
         // Check if any medicines are still pending
-        const hasPendingMedicines = currentReminder.medicines.some(
-          (med) => med.status === "pending"
-        );
-
+        const hasPendingMedicines = currentReminder.status === "pending";
         if (hasPendingMedicines) {
           // Mark reminder as missed
           await Reminder.findByIdAndUpdate(reminder._id, {
@@ -259,9 +250,7 @@ const notifyParent = async (reminder, io) => {
     // Format notification for parent
     const notification = {
       title: "Missed Dose Alert",
-      body: `${reminder.user.name} missed their dose of ${reminder.medicines
-        .map((med) => med.medicine?.medicineStack?.name)
-        .join(", ")}`,
+      body: `${reminder.user.name} missed their dose of ${reminder.medicine?.name}`,
       data: {
         reminderId: reminder._id,
         dependentId: reminder.user._id,
@@ -310,14 +299,8 @@ const scheduleNextRecurrence = async (reminder, io) => {
       return;
     }
 
-    // Create new reminder for next occurrence
-    const medicinesArray = reminder.medicines.map((med) => ({
-      medicine: med.medicine._id,
-      status: "pending"
-    }));
-
     const newReminder = new Reminder({
-      medicines: medicinesArray,
+      medicines: reminder.medicine,
       user: reminder.user._id,
       scheduleStart: reminder.scheduleStart,
       scheduleEnd: reminder.scheduleEnd,
@@ -341,7 +324,8 @@ const scheduleNextRecurrence = async (reminder, io) => {
     await scheduleReminderNotification(
       await Reminder.findById(savedReminder._id)
         .populate({
-          path: "medicines.medicine",
+          path: "medicine",
+          select: "name id category dosage instructions"
         })
         .populate("user"),
       io
@@ -470,7 +454,11 @@ const calculateNextTime = (reminder) => {
 const initializeReminders = async (io) => {
   try {
     // Schedule reminders in the next 7 days
-    const scheduledReminders = await scheduleRemindersInRange(getCurrentDateTime(), addHoursToDate(24*7), io);
+    const scheduledReminders = await scheduleRemindersInRange(
+      getCurrentDateTime(),
+      addHoursToDate(24 * 7),
+      io
+    );
 
     logger.info(
       `Initialized ${scheduledReminders.length} reminders for the next 7 days`
@@ -550,7 +538,8 @@ const snoozeReminder = async (reminderId, minutes, io) => {
       { new: true }
     )
       .populate({
-        path: "medicines.medicine"
+        path: "medicine",
+        select: "name id category dosage instructions"
       })
       .populate("user");
 
