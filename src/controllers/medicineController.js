@@ -16,7 +16,7 @@ exports.getMedicines = async (req, res) => {
 
     const medicines = await Medicine.find(queryObj)
       .select("_id name dosage category")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1, name: 1 });
 
     res.json({
       success: true,

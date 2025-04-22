@@ -45,11 +45,7 @@ const ReminderSchema = new mongoose.Schema({
   },
   missedAt: {
     type: Date,
-    default: () => {
-      const now = new Date();
-      const istOffset = 30 * 60 * 1000;
-      return new Date(now.getTime() + istOffset);
-    }
+    default: null
   },
   notificationSent: {
     type: Boolean,

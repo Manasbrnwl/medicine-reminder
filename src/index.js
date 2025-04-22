@@ -11,7 +11,8 @@ const logger = require("../utils/logger");
 const {
   initializeReminders,
   getQueuesStatus,
-  setSocketIo
+  setSocketIo,
+  initializeQueues
 } = require("../utils/queueService");
 const path = require("path");
 
@@ -95,14 +96,30 @@ const initializeApp = async () => {
   try {
     // Connect to MongoDB
     await connectDB();
+
     // Connect to Redis
     await connectRedis();
+
+    // Set global socket.io instance for notifications
+    setSocketIo(io);
+
+    // Make sure queues are initialized
+    await initializeQueues();
+
     // Initialize reminders using queue service
     const count = await initializeReminders(io);
+    logger.info(`Initialized ${count} reminders on startup`);
 
     // Set up a daily job to refresh reminders
     schedule.scheduleJob("0 0 * * *", async () => {
-      await initializeReminders(io);
+      const refreshCount = await initializeReminders(io);
+      logger.info(`Daily refresh: Initialized ${refreshCount} reminders`);
+    });
+
+    // Also refresh every hour to catch any missed reminders
+    schedule.scheduleJob("0 * * * *", async () => {
+      const refreshCount = await initializeReminders(io);
+      logger.info(`Hourly refresh: Initialized ${refreshCount} reminders`);
     });
 
     // Start the server
@@ -112,7 +129,7 @@ const initializeApp = async () => {
     });
   } catch (error) {
     logger.error(`Application initialization failed: ${error.message}`);
-    // logger.error(`Error stack: ${error.stack}`);
+    logger.error(`Error stack: ${error.stack}`);
     process.exit(1);
   }
 };

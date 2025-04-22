@@ -76,9 +76,7 @@ const sendReminderSMS = async (user, reminder) => {
       throw new Error("User does not have a phone number");
     }
 
-    const medicineNames = reminder.medicines
-      .map((med) => med.medicine.medicineStack.name)
-      .join(", ");
+    const medicineNames = reminder.medicine?.name;
 
     const timeFormatted = new Date(reminder.time).toLocaleTimeString("en-US", {
       hour: "2-digit",
@@ -106,9 +104,7 @@ const sendMissedDoseSMS = async (user, reminder) => {
       throw new Error("User does not have a phone number");
     }
 
-    const medicineNames = reminder.medicines
-      .map((med) => med.medicine.medicineStack.name)
-      .join(", ");
+    const medicineNames = reminder.medicine?.name;
 
     const timeFormatted = new Date(reminder.time).toLocaleTimeString("en-US", {
       hour: "2-digit",
