@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-# medicine-reminder
-=======
 # Medicine Reminder API
 
 A Node.js backend application for medicine reminder management, with features for parent-child relationship tracking and various notification methods.
@@ -889,6 +886,8 @@ Here are some example query parameter combinations:
 
 This application uses Redis with Bull for distributed job processing to manage medication reminders. This approach provides improved reliability, scalability, and performance for scheduling reminders when handling a large number of users.
 
+> **Note:** As of the latest update, the application exclusively uses Bull queues for reminder scheduling. The node-schedule based implementation (`scheduler.js`) has been removed to streamline the codebase and eliminate duplicate functionality.
+
 ### Installing Redis
 
 #### On Windows:
@@ -930,4 +929,3 @@ REDIS_URL=redis://localhost:6379
 - **Delayed Jobs**: Supports scheduling reminders far in advance
 - **Monitoring**: Easy monitoring of queue status through the API
 - **Distributed Processing**: Can be scaled horizontally across multiple servers
->>>>>>> master

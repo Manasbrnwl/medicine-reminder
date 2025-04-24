@@ -197,7 +197,7 @@ recurringReminderQueue.process(async (job) => {
     }
 
     // Create next occurrence based on reminder pattern
-    // const result = await createNextOccurrence(reminder, globalIo);
+    const result = await createNextOccurrence(reminder, globalIo);
     return { success: true, nextReminderId: result?.reminderId };
   } catch (error) {
     logger.error(`Error creating recurring reminder: ${error.message}`);
@@ -415,28 +415,52 @@ async function notifyParent(reminder, io) {
 // Schedule next occurrence of recurring reminder
 async function scheduleNextRecurrence(reminder, io) {
   try {
-    // Add job to create next occurrence - don't pass io object
-    await recurringReminderQueue.add(
-      {
-        reminderId: reminder._id.toString()
-      },
-      {
-        attempts: 3,
-        backoff: {
-          type: "exponential",
-          delay: 60000 // 1 minute
-        },
-        removeOnComplete: true
-      }
-    );
+    // Calculate next time based on frequency and repeat pattern
+    const nextTime = calculateNextTime(reminder);
+
+    // Stop if next time is after schedule end date
+    if (reminder.scheduleEnd && nextTime > new Date(reminder.scheduleEnd)) {
+      await Reminder.findByIdAndUpdate(reminder._id, {
+        status: "missed",
+        missedAt: new Date()
+      });
+      logger.info(
+        `Reminder ${reminder._id} has reached its end date, no more occurrences`
+      );
+      return null;
+    }
+
+    // Create new reminder for next occurrence
+    const newReminder = new Reminder({
+      medicine: reminder.medicine.id,
+      user: reminder.user._id,
+      scheduleStart: reminder.scheduleStart,
+      scheduleEnd: reminder.scheduleEnd,
+      frequency: reminder.frequency,
+      time: nextTime,
+      repeat: reminder.repeat,
+      daysOfWeek: reminder.daysOfWeek,
+      daysOfMonth: reminder.daysOfMonth,
+      repeatInterval: reminder.repeatInterval,
+      repeatUnit: reminder.repeatUnit,
+      active: true
+    });
+
+    // Save the new reminder
+    const savedReminder = await newReminder.save();
+
+    // Schedule the notification
+    await scheduleReminder(savedReminder._id, nextTime, io);
 
     logger.info(
-      `Queued job to create next occurrence of reminder ${reminder._id}`
+      `Created and scheduled next occurrence for reminder ${
+        reminder._id
+      } at ${nextTime.toISOString()}`
     );
-    return true;
+    return { success: true, reminderId: savedReminder._id };
   } catch (error) {
-    logger.error(`Error scheduling next recurrence: ${error.message}`);
-    return false;
+    logger.error(`Error creating next occurrence: ${error.message}`);
+    return null;
   }
 }
 
@@ -448,6 +472,10 @@ async function createNextOccurrence(reminder, io) {
 
     // Stop if next time is after schedule end date
     if (reminder.scheduleEnd && nextTime > new Date(reminder.scheduleEnd)) {
+      await Reminder.findByIdAndUpdate(reminder._id, {
+        status: "missed",
+        missedAt: new Date()
+      });
       logger.info(
         `Reminder ${reminder._id} has reached its end date, no more occurrences`
       );
@@ -460,11 +488,6 @@ async function createNextOccurrence(reminder, io) {
       scheduleStart: reminder.scheduleStart,
       scheduleEnd: reminder.scheduleEnd,
       frequency: reminder.frequency,
-      standardTime: reminder.standardTime,
-      morningTime: reminder.morningTime,
-      afternoonTime: reminder.afternoonTime,
-      eveningTime: reminder.eveningTime,
-      customTimes: reminder.customTimes,
       time: nextTime,
       repeat: reminder.repeat,
       daysOfWeek: reminder.daysOfWeek,
@@ -491,7 +514,11 @@ async function createNextOccurrence(reminder, io) {
   }
 }
 
-// Calculate next time for recurring reminder
+/**
+ * Calculate next time for recurring reminder
+ * @param {Object} reminder - Reminder document
+ * @returns {Date} - Next reminder time
+ */
 function calculateNextTime(reminder) {
   const currentTime = new Date(reminder.time);
   let nextTime = new Date(currentTime);
@@ -831,6 +858,97 @@ async function scheduleUserReminders(userId, io) {
   }
 }
 
+/**
+ * Cancel a specific reminder job
+ * @param {string} reminderId - Reminder ID to cancel
+ */
+const cancelReminder = async (reminderId) => {
+  try {
+    // Find the existing jobs for this reminder
+    const reminderJobKey = `bull:medication-reminders:${reminderId}`;
+    const missedDoseJobKey = `bull:missed-dose-checks:${reminderId}`;
+
+    // Clean up reminder job if exists
+    const reminderJobs = await reminderQueue.getJobs([
+      "delayed",
+      "active",
+      "waiting"
+    ]);
+    for (const job of reminderJobs) {
+      if (job.data.reminderId === reminderId.toString()) {
+        await job.remove();
+        logger.info(`Cancelled reminder job for ${reminderId}`);
+      }
+    }
+
+    // Clean up missed dose job if exists
+    const missedDoseJobs = await missedDoseQueue.getJobs([
+      "delayed",
+      "active",
+      "waiting"
+    ]);
+    for (const job of missedDoseJobs) {
+      if (job.data.reminderId === reminderId.toString()) {
+        await job.remove();
+        logger.info(`Cancelled missed dose job for ${reminderId}`);
+      }
+    }
+
+    logger.info(`Cancelled reminder ${reminderId}`);
+    return true;
+  } catch (error) {
+    logger.error(`Error cancelling reminder ${reminderId}: ${error.message}`);
+    return false;
+  }
+};
+
+/**
+ * Reschedule a snoozed reminder
+ * @param {string} reminderId - Reminder ID
+ * @param {Date|string} snoozedUntil - Time to snooze until
+ * @param {Object} io - Socket.io instance
+ */
+const snoozeReminder = async (reminderId, snoozedUntil, io) => {
+  try {
+    // Parse snoozed time
+    const snoozedTime = new Date(snoozedUntil);
+
+    // Update reminder with snoozed status and time
+    const updatedReminder = await Reminder.findByIdAndUpdate(
+      reminderId,
+      {
+        status: "snoozed",
+        snoozedUntil: snoozedTime
+      },
+      { new: true }
+    )
+      .populate({
+        path: "medicine",
+        select: "name id category dosage instructions"
+      })
+      .populate("user");
+
+    if (!updatedReminder) {
+      logger.error(`Reminder ${reminderId} not found for snooze`);
+      return null;
+    }
+
+    // Cancel existing jobs
+    await cancelReminder(reminderId);
+
+    // Schedule new reminder with the snoozed time
+    await scheduleReminder(reminderId, snoozedTime, io);
+
+    logger.info(
+      `Snoozed reminder ${reminderId} until ${snoozedTime.toISOString()}`
+    );
+    return updatedReminder;
+  } catch (error) {
+    logger.error(`Error snoozing reminder ${reminderId}: ${error.message}`);
+    return null;
+  }
+};
+
 module.exports = {
   reminderQueue,
   missedDoseQueue,
@@ -844,5 +962,9 @@ module.exports = {
   resumeQueues,
   getQueuesStatus,
   setSocketIo,
-  initializeQueues
+  initializeQueues,
+  cancelReminder,
+  snoozeReminder,
+  calculateNextTime,
+  scheduleNextRecurrence
 };
