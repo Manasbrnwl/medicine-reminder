@@ -92,6 +92,14 @@ const UserSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    streakChange: {
+      type: Date,
+      default: () => {
+        const now = new Date();
+        const istOffset = 5.5 * 60 * 60 * 1000;
+        return new Date(now.getTime() + istOffset);
+      }
+    },
     // OTP fields for OTP-based login
     otp: {
       type: String,

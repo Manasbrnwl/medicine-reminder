@@ -760,30 +760,33 @@ exports.getDashboardStats = async (req, res) => {
     };
 
     reminderCountsByStatus.forEach((stat) => {
-      if (stat._id === "completed") reminderCounts.taken = stat.count;
+      if (stat._id === "taken") reminderCounts.taken = stat.count;
       else if (stat._id === "missed") reminderCounts.missed = stat.count;
       else if (stat._id === "pending") reminderCounts.pending = stat.count;
       reminderCounts.total += stat.count;
     });
 
-    // Get most taken medicines
+    // Get most medicines reminders set
     const mostTakenMedicines = await Reminder.aggregate([
       {
         $match: {
           user: mongoose.Types.ObjectId(userId),
-          "medicines.status": "taken"
+          // status: "pending"
+          // time: { $gte: startDate, $lte: endDate }
         }
       },
-      { $unwind: "$medicines" },
-      { $match: { "medicines.status": "taken" } },
       {
         $group: {
-          _id: "$medicines.medicine",
+          _id: "$medicine",
           count: { $sum: 1 }
         }
       },
-      { $sort: { count: -1 } },
-      { $limit: 5 },
+      {
+        $sort: { count: -1 }
+      },
+      {
+        $limit: 5
+      },
       {
         $lookup: {
           from: "medicines",
@@ -792,10 +795,12 @@ exports.getDashboardStats = async (req, res) => {
           as: "medicineDetails"
         }
       },
-      { $unwind: "$medicineDetails" },
+      {
+        $unwind: "$medicineDetails"
+      },
       {
         $project: {
-          _id: 1,
+          _id: 0,
           count: 1,
           name: "$medicineDetails.name",
           category: "$medicineDetails.category"
@@ -805,39 +810,37 @@ exports.getDashboardStats = async (req, res) => {
 
     // Calculate streak points
     // A day is counted in streak if all reminders for that day were taken
-    const oneMonthAgo = new Date();
-    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
 
     // Group reminders by date
     const remindersByDate = await Reminder.aggregate([
       {
         $match: {
           user: mongoose.Types.ObjectId(userId),
-          time: { $gte: oneMonthAgo }
+          time: { $gte: new Date(user.streakChange) } // Filter from last streak update
         }
       },
       {
         $project: {
           date: { $dateToString: { format: "%Y-%m-%d", date: "$time" } },
-          allTaken: {
-            $allElementsTrue: {
-              $map: {
-                input: "$medicines",
-                as: "med",
-                in: { $eq: ["$$med.status", "taken"] }
-              }
-            }
-          }
+          status:1,
+          allTaken: { $eq: ["$status", "taken"] }
         }
       },
       {
         $group: {
           _id: "$date",
-          allRemindersForDayTaken: { $min: "$allTaken" },
+          allRemindersForDayTaken: { $min: "$allTaken" }, // if any reminder has not all taken → false
           reminderCount: { $sum: 1 }
         }
       },
-      { $sort: { _id: 1 } }
+      {
+        $match: {
+          allRemindersForDayTaken: true // only keep days where all reminders were taken
+        }
+      },
+      {
+        $sort: { _id: 1 } // chronological order
+      }
     ]);
 
     // Calculate current streak
@@ -852,24 +855,7 @@ exports.getDashboardStats = async (req, res) => {
       }
     });
 
-    // Count consecutive days from today backwards
-    let currentDate = new Date();
-    while (true) {
-      const dateString = currentDate.toISOString().split("T")[0];
-
-      // Skip future dates
-      if (dateString > today) {
-        currentDate.setDate(currentDate.getDate() - 1);
-        continue;
-      }
-
-      if (completedDates.has(dateString)) {
-        streakCount++;
-        currentDate.setDate(currentDate.getDate() - 1);
-      } else {
-        break;
-      }
-    }
+    streakCount = completedDates.size
 
     // Update user's streak count if the new count is higher than the existing one
     if (!user.streakCount || streakCount > user.streakCount) {
