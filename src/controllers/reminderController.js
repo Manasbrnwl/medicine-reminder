@@ -138,7 +138,10 @@ exports.createReminder = async (req, res) => {
     } = req.body;
 
     let medicine;
-    const is_medicine = await Medicine.find({ name: medicine_name });
+    const is_medicine = await Medicine.find({
+      name: medicine_name,
+      user: req.user.id
+    });
     if (is_medicine.length === 0) {
       medicine = await Medicine.create({
         name: medicine_name,
@@ -149,7 +152,7 @@ exports.createReminder = async (req, res) => {
       });
     }
 
-  if (frequency === "custom" && customTimes.length > 0) {
+    if (frequency === "custom" && customTimes.length > 0) {
       await Promise.all(
         customTimes.map(async (time) => {
           await Reminder.create({
