@@ -70,7 +70,9 @@ exports.loginUser = async (req, res) => {
     const { email, password } = req.body;
 
     // Check for user
-    const user = await User.findOne({ email }).select("+password");
+    const user = await User.findOne({ email })
+      .select("+password")
+      .populate("dependents", "_id name email phone");
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -96,7 +98,12 @@ exports.loginUser = async (req, res) => {
         phone: user.phone,
         role: user.role,
         parent: user.parent,
-        dependents: user.dependents,
+        dependents: user.dependents.map((data) => ({
+          _id: data._id,
+          name: data.name,
+          email: data.email,
+          phone: data.phone
+        })),
         notificationPreferences: user.notificationPreferences,
         token: generateToken(user._id)
       }
@@ -381,7 +388,8 @@ exports.verifyOTPAndLogin = async (req, res) => {
     }
 
     // OTP verification successful, create token and log user in
-    const user = result.user;
+    const user = await result.user.populate("dependents", "_id name email phone");
+    console.log(user)
 
     res.json({
       success: true,
@@ -392,7 +400,12 @@ exports.verifyOTPAndLogin = async (req, res) => {
         phone: user.phone,
         role: user.role,
         parent: user.parent,
-        dependents: user.dependents,
+        dependents: user.dependents.map((data) => ({
+          _id: data._id,
+          name: data.name,
+          email: data.email,
+          phone: data.phone
+        })),
         notificationPreferences: user.notificationPreferences,
         token: generateToken(user._id)
       }

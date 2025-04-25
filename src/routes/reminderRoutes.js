@@ -64,8 +64,8 @@ router
   .delete(deleteReminder);
 
 // Reminder status routes
-router.put("/:id/take/:medicineIndex", markMedicineAsTaken);
-router.put("/:id/miss/:medicineIndex", markMedicineAsMissed);
+router.put("/:id/take", markMedicineAsTaken);
+router.put("/:id/miss", markMedicineAsMissed);
 router.put("/:id/snooze", snoozeReminder);
 
 module.exports = router;

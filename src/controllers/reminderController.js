@@ -149,96 +149,7 @@ exports.createReminder = async (req, res) => {
       });
     }
 
-    if (frequency === "once") {
-      // Create reminder
-      await Reminder.create({
-        medicine: is_medicine.length > 0 ? is_medicine[0].id : medicine.id,
-        user: req.user.id,
-        scheduleStart: scheduleStart || new Date(),
-        scheduleEnd: scheduleEnd || null,
-        frequency,
-        time: new Date(standardTime),
-        repeat: repeat || "none",
-        daysOfWeek: daysOfWeek || [],
-        daysOfMonth: daysOfMonth || [],
-        repeatInterval: repeatInterval || 1,
-        repeatUnit: repeatUnit || "days",
-        active: true
-      });
-    } else if (frequency === "twice") {
-      await Reminder.create({
-        medicine: is_medicine.length > 0 ? is_medicine[0].id : medicine.id,
-        user: req.user.id,
-        scheduleStart: scheduleStart || new Date(),
-        scheduleEnd: scheduleEnd || null,
-        frequency,
-        time: new Date(morningTime),
-        repeat: repeat || "none",
-        daysOfWeek: daysOfWeek || [],
-        daysOfMonth: daysOfMonth || [],
-        repeatInterval: repeatInterval || 1,
-        repeatUnit: repeatUnit || "days",
-        active: true
-      });
-      await Reminder.create({
-        medicine: is_medicine.length > 0 ? is_medicine[0].id : medicine.id,
-        user: req.user.id,
-        scheduleStart: scheduleStart || new Date(),
-        scheduleEnd: scheduleEnd || null,
-        frequency,
-        time: new Date(eveningTime),
-        repeat: repeat || "none",
-        daysOfWeek: daysOfWeek || [],
-        daysOfMonth: daysOfMonth || [],
-        repeatInterval: repeatInterval || 1,
-        repeatUnit: repeatUnit || "days",
-        active: true
-      });
-    } else if (frequency === "thrice") {
-      await Reminder.create({
-        medicine: is_medicine.length > 0 ? is_medicine[0].id : medicine.id,
-        user: req.user.id,
-        scheduleStart: scheduleStart || new Date(),
-        scheduleEnd: scheduleEnd || null,
-        frequency,
-        time: new Date(morningTime),
-        repeat: repeat || "none",
-        daysOfWeek: daysOfWeek || [],
-        daysOfMonth: daysOfMonth || [],
-        repeatInterval: repeatInterval || 1,
-        repeatUnit: repeatUnit || "days",
-        active: true
-      });
-      await Reminder.create({
-        medicine: is_medicine.length > 0 ? is_medicine[0].id : medicine.id,
-        user: req.user.id,
-        scheduleStart: scheduleStart || new Date(),
-        scheduleEnd: scheduleEnd || null,
-        frequency,
-        time: new Date(afternoonTime),
-        repeat: repeat || "none",
-        daysOfWeek: daysOfWeek || [],
-        daysOfMonth: daysOfMonth || [],
-        repeatInterval: repeatInterval || 1,
-        repeatUnit: repeatUnit || "days",
-        active: true
-      });
-      await Reminder.create({
-        medicine: is_medicine.length > 0 ? is_medicine[0].id : medicine.id,
-        user: req.user.id,
-        scheduleStart: scheduleStart || new Date(),
-        scheduleEnd: scheduleEnd || null,
-        frequency,
-        time: new Date(eveningTime),
-        repeat: repeat || "none",
-        daysOfWeek: daysOfWeek || [],
-        daysOfMonth: daysOfMonth || [],
-        repeatInterval: repeatInterval || 1,
-        repeatUnit: repeatUnit || "days",
-        active: true
-      });
-      nextTime = Math.min(morning, afternoon, evening);
-    } else if (frequency === "custom" && customTimes.length > 0) {
+  if (frequency === "custom" && customTimes.length > 0) {
       await Promise.all(
         customTimes.map(async (time) => {
           await Reminder.create({
@@ -415,7 +326,7 @@ exports.deleteReminder = async (req, res) => {
 };
 
 // @desc    Mark a medicine in a reminder as taken
-// @route   PUT /api/reminders/:id/take/:medicineIndex
+// @route   PUT /api/reminders/:id/take
 // @access  Private
 exports.markMedicineAsTaken = async (req, res) => {
   try {
@@ -459,11 +370,11 @@ exports.markMedicineAsTaken = async (req, res) => {
 };
 
 // @desc    Mark a medicine in a reminder as missed
-// @route   PUT /api/reminders/:id/miss/:medicineIndex
+// @route   PUT /api/reminders/:id/miss
 // @access  Private
 exports.markMedicineAsMissed = async (req, res) => {
   try {
-    const { id, medicineIndex } = req.params;
+    const { id } = req.params;
     const reminder = await Reminder.findById(id).populate({
       path: "medicine",
       select: "name id category dosage instructions"
@@ -648,46 +559,9 @@ exports.createReminderForDependent = async (req, res) => {
       });
     }
 
-    // Validate that medicines is an array of medicine IDs
-    if (!Array.isArray(medicines) || medicines.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide at least one medicine"
-      });
-    }
-
-    // Check if all medicines exist and belong to the dependent
-    const medicineEntities = await Promise.all(
-      medicines.map((medicineId) => Medicine.findById(medicineId))
-    );
-
-    for (let i = 0; i < medicineEntities.length; i++) {
-      const medicine = medicineEntities[i];
-
-      if (!medicine) {
-        return res.status(404).json({
-          success: false,
-          message: `Medicine with ID ${medicines[i]} not found`
-        });
-      }
-
-      if (medicine.user.toString() !== dependentId) {
-        return res.status(403).json({
-          success: false,
-          message: `Medicine with ID ${medicines[i]} does not belong to this dependent`
-        });
-      }
-    }
-
-    // Format medicines array for the reminder
-    const medicinesArray = medicines.map((medicineId) => ({
-      medicine: medicineId,
-      status: "pending"
-    }));
-
     // Create reminder
     const reminder = await Reminder.create({
-      medicines: medicinesArray,
+      medicines: medicines,
       user: dependentId,
       time,
       repeat: repeat || "none",
@@ -714,6 +588,159 @@ exports.createReminderForDependent = async (req, res) => {
   }
 };
 
+async function dashboard(res, userId, date) {
+  let today = new Date(date);
+  const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+
+  // Get user info
+  const user = await User.findById(userId);
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: "User not found"
+    });
+  }
+
+  // Get reminder counts by status
+  const reminderCountsByStatus = await Reminder.aggregate([
+    {
+      $match: {
+        user: mongoose.Types.ObjectId(userId),
+        time: { $lte: endOfDay }
+      }
+    },
+    {
+      $group: {
+        _id: "$status",
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  // Format reminder counts
+  const reminderCounts = {
+    taken: 0,
+    missed: 0,
+    pending: 0,
+    total: 0
+  };
+
+  reminderCountsByStatus.forEach((stat) => {
+    if (stat._id === "taken") reminderCounts.taken = stat.count;
+    else if (stat._id === "missed") reminderCounts.missed = stat.count;
+    else if (stat._id === "pending") reminderCounts.pending = stat.count;
+    reminderCounts.total += stat.count;
+  });
+
+  // Get most medicines reminders set
+  const mostTakenMedicines = await Reminder.aggregate([
+    {
+      $match: {
+        user: mongoose.Types.ObjectId(userId)
+        // status: "pending"
+        // time: { $gte: startDate, $lte: endDate }
+      }
+    },
+    {
+      $group: {
+        _id: "$medicine",
+        count: { $sum: 1 }
+      }
+    },
+    {
+      $sort: { count: -1 }
+    },
+    {
+      $limit: 5
+    },
+    {
+      $lookup: {
+        from: "medicines",
+        localField: "_id",
+        foreignField: "_id",
+        as: "medicineDetails"
+      }
+    },
+    {
+      $unwind: "$medicineDetails"
+    },
+    {
+      $project: {
+        _id: 0,
+        count: 1,
+        name: "$medicineDetails.name",
+        category: "$medicineDetails.category"
+      }
+    }
+  ]);
+
+  // Calculate streak points
+  // A day is counted in streak if all reminders for that day were taken
+
+  // Group reminders by date
+  const remindersByDate = await Reminder.aggregate([
+    {
+      $match: {
+        user: mongoose.Types.ObjectId(userId),
+        time: { $gte: new Date(user.streakChange) } // Filter from last streak update
+      }
+    },
+    {
+      $project: {
+        date: { $dateToString: { format: "%Y-%m-%d", date: "$time" } },
+        status: 1,
+        allTaken: { $eq: ["$status", "taken"] }
+      }
+    },
+    {
+      $group: {
+        _id: "$date",
+        allRemindersForDayTaken: { $min: "$allTaken" }, // if any reminder has not all taken → false
+        reminderCount: { $sum: 1 }
+      }
+    },
+    {
+      $match: {
+        allRemindersForDayTaken: true // only keep days where all reminders were taken
+      }
+    },
+    {
+      $sort: { _id: 1 } // chronological order
+    }
+  ]);
+
+  // Calculate current streak
+  let streakCount = 0;
+  today = new Date().toISOString().split("T")[0];
+
+  // Create a set of dates with all reminders taken
+  const completedDates = new Set();
+  remindersByDate.forEach((day) => {
+    if (day.allRemindersForDayTaken && day.reminderCount > 0) {
+      completedDates.add(day._id);
+    }
+  });
+
+  streakCount = completedDates.size;
+
+  // Update user's streak count if the new count is higher than the existing one
+  if (!user.streakCount || streakCount > user.streakCount) {
+    await User.findByIdAndUpdate(userId, { streakCount });
+  }
+
+  return {
+    data: {
+      user: {
+        name: user.name,
+        email: user.email
+      },
+      reminderCounts,
+      streakPoints: streakCount,
+      mostTakenMedicines
+    }
+  };
+}
+
 // @desc    Get dashboard stats for a user
 // @route   GET /api/reminders/dashboard
 // @access  Private
@@ -722,157 +749,10 @@ exports.getDashboardStats = async (req, res) => {
     const userId = req.user.id;
     const { date } = req.query;
 
-    let today = new Date(date);
-    const startOfDay = new Date(today.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(today.setHours(23, 59, 59, 999));
-
-    // Get user info
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found"
-      });
-    }
-
-    // Get reminder counts by status
-    const reminderCountsByStatus = await Reminder.aggregate([
-      {
-        $match: {
-          user: mongoose.Types.ObjectId(userId),
-          time: { $lte: endOfDay }
-        }
-      },
-      {
-        $group: {
-          _id: "$status",
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-
-    // Format reminder counts
-    const reminderCounts = {
-      taken: 0,
-      missed: 0,
-      pending: 0,
-      total: 0
-    };
-
-    reminderCountsByStatus.forEach((stat) => {
-      if (stat._id === "taken") reminderCounts.taken = stat.count;
-      else if (stat._id === "missed") reminderCounts.missed = stat.count;
-      else if (stat._id === "pending") reminderCounts.pending = stat.count;
-      reminderCounts.total += stat.count;
-    });
-
-    // Get most medicines reminders set
-    const mostTakenMedicines = await Reminder.aggregate([
-      {
-        $match: {
-          user: mongoose.Types.ObjectId(userId),
-          // status: "pending"
-          // time: { $gte: startDate, $lte: endDate }
-        }
-      },
-      {
-        $group: {
-          _id: "$medicine",
-          count: { $sum: 1 }
-        }
-      },
-      {
-        $sort: { count: -1 }
-      },
-      {
-        $limit: 5
-      },
-      {
-        $lookup: {
-          from: "medicines",
-          localField: "_id",
-          foreignField: "_id",
-          as: "medicineDetails"
-        }
-      },
-      {
-        $unwind: "$medicineDetails"
-      },
-      {
-        $project: {
-          _id: 0,
-          count: 1,
-          name: "$medicineDetails.name",
-          category: "$medicineDetails.category"
-        }
-      }
-    ]);
-
-    // Calculate streak points
-    // A day is counted in streak if all reminders for that day were taken
-
-    // Group reminders by date
-    const remindersByDate = await Reminder.aggregate([
-      {
-        $match: {
-          user: mongoose.Types.ObjectId(userId),
-          time: { $gte: new Date(user.streakChange) } // Filter from last streak update
-        }
-      },
-      {
-        $project: {
-          date: { $dateToString: { format: "%Y-%m-%d", date: "$time" } },
-          status:1,
-          allTaken: { $eq: ["$status", "taken"] }
-        }
-      },
-      {
-        $group: {
-          _id: "$date",
-          allRemindersForDayTaken: { $min: "$allTaken" }, // if any reminder has not all taken → false
-          reminderCount: { $sum: 1 }
-        }
-      },
-      {
-        $match: {
-          allRemindersForDayTaken: true // only keep days where all reminders were taken
-        }
-      },
-      {
-        $sort: { _id: 1 } // chronological order
-      }
-    ]);
-
-    // Calculate current streak
-    let streakCount = 0;
-    today = new Date().toISOString().split("T")[0];
-
-    // Create a set of dates with all reminders taken
-    const completedDates = new Set();
-    remindersByDate.forEach((day) => {
-      if (day.allRemindersForDayTaken && day.reminderCount > 0) {
-        completedDates.add(day._id);
-      }
-    });
-
-    streakCount = completedDates.size
-
-    // Update user's streak count if the new count is higher than the existing one
-    if (!user.streakCount || streakCount > user.streakCount) {
-      await User.findByIdAndUpdate(userId, { streakCount });
-    }
-
-    res.json({
-      success: true,
-      data: {
-        user: {
-          name: user.name,
-          email: user.email
-        },
-        reminderCounts,
-        streakPoints: streakCount,
-        mostTakenMedicines
-      }
+    const data = await dashboard(res, userId, date);
+    return res.json({
+      status: true,
+      data: data.data
     });
   } catch (error) {
     res.status(500).json({
@@ -888,12 +768,16 @@ exports.getDashboardStats = async (req, res) => {
 // @access  Private
 exports.getDependentDashboardStats = async (req, res) => {
   try {
-    // Implementation will need to be updated based on the new model
-    // This is just a placeholder for now
+    const userId = req.user.id;
+    const { dependentId } = req.params;
+    const { date } = req.query;
+
+    const data = await dashboard(res, dependentId, date);
     res.json({
       success: true,
       message:
-        "Dependent dashboard stats endpoint (to be implemented with new model)"
+        "Dependent dashboard stats endpoint (to be implemented with new model)",
+      data: data.data
     });
   } catch (error) {
     res.status(500).json({
