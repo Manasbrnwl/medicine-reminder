@@ -5,7 +5,8 @@ const {
   scheduleReminder,
   cancelReminder,
   snoozeReminder: queueSnoozeReminder,
-  scheduleUserReminders
+  scheduleUserReminders,
+  scheduleRemindersInRange
 } = require("../../utils/queueService");
 const {
   sendPushNotification,
@@ -16,7 +17,8 @@ const {
   getCurrentDateTime,
   subtractHoursToDate,
   addHoursToDate,
-  convertIntoISTTime
+  convertIntoISTTime,
+  addISTOffset
 } = require("../default/common");
 const moment = require("moment-timezone");
 const {
@@ -41,8 +43,8 @@ exports.getReminders = async (req, res) => {
     // Add date range filter if provided
     if (startDate || endDate) {
       queryObj.time = {};
-      if (startDate) queryObj.time.$gte = new Date(startDate);
-      if (endDate) queryObj.time.$lte = new Date(endDate);
+      if (startDate) queryObj.time.$gte = new Date(addISTOffset(startDate));
+      if (endDate) queryObj.time.$lte = new Date(addISTOffset(endDate));
     }
 
     // Add status filter if provided
@@ -155,7 +157,7 @@ exports.createReminder = async (req, res) => {
     if (frequency === "custom" && customTimes.length > 0) {
       await Promise.all(
         customTimes.map(async (time) => {
-          await Reminder.create({
+          let reminderData = await Reminder.create({
             medicine: is_medicine.length > 0 ? is_medicine[0].id : medicine.id,
             user: req.user.id,
             scheduleStart: scheduleStart || new Date(),
@@ -169,16 +171,21 @@ exports.createReminder = async (req, res) => {
             repeatUnit: repeatUnit || "days",
             active: true
           });
+          scheduleReminder(
+            reminderData._id.toString(),
+            new Date(reminderData.time),
+            1
+          );
         })
       );
     } else {
-      await Reminder.create({
+      let reminderData = await Reminder.create({
         medicine: is_medicine.length > 0 ? is_medicine[0].id : medicine.id,
         user: req.user.id,
         scheduleStart: scheduleStart || new Date(),
         scheduleEnd: scheduleEnd || null,
         frequency,
-        time: new Date(),
+        time: addISTOffset(new Date()),
         repeat: repeat || "none",
         daysOfWeek: daysOfWeek || [],
         daysOfMonth: daysOfMonth || [],
@@ -186,8 +193,14 @@ exports.createReminder = async (req, res) => {
         repeatUnit: repeatUnit || "days",
         active: true
       });
+      scheduleReminder(reminderData._id, new Date(reminderData.time), 1);
     }
-
+    scheduleRemindersInRange(
+      addISTOffset(new Date()),
+      addISTOffset(new Date(customTimes.length - 1)),
+      global.io,
+      req.user.id
+    );
     res.status(201).json({
       success: true,
       message: "All the reminders are set."
@@ -312,7 +325,7 @@ exports.deleteReminder = async (req, res) => {
         message: "Not authorized to delete this reminder"
       });
     }
-
+    cancelReminder(req.params.id);
     await reminder.deleteOne();
 
     res.json({
@@ -453,7 +466,7 @@ exports.snoozeReminder = async (req, res) => {
 
     // Calculate snoozed time
     const now = new Date();
-    const snoozedUntil = new Date(now.getTime() + minutes * 60000);
+    const snoozedUntil = addISTOffset(new Date(now.getTime() + minutes * 60000));
 
     // Update reminder in database with snoozed status
     const updatedReminder = await Reminder.findByIdAndUpdate(
