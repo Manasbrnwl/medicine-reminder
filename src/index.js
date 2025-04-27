@@ -12,7 +12,8 @@ const {
   initializeReminders,
   getQueuesStatus,
   setSocketIo,
-  initializeQueues
+  initializeQueues,
+  cleanupQueues
 } = require("../utils/queueService");
 const path = require("path");
 
