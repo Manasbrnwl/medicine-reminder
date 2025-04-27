@@ -1,3 +1,4 @@
+const { addISTOffset } = require("../src/default/common");
 const User = require("../src/models/User");
 const {
   sendEmailNotification,
@@ -17,7 +18,7 @@ const generateOTP = () => {
  * @returns {Date} OTP expiry date
  */
 const calculateOTPExpiry = () => {
-  const expiryTime = new Date();
+  const expiryTime = addISTOffset(new Date());
   expiryTime.setMinutes(expiryTime.getMinutes() + 10); // OTP valid for 10 minutes
   return expiryTime;
 };
@@ -41,7 +42,7 @@ exports.generateAndSaveOTP = async (identifier, isEmail = true) => {
     if (!user) {
       return { success: false, message: "User not found" };
     }
-
+    
     // Generate OTP
     const otp = generateOTP();
     const otpExpiry = calculateOTPExpiry();

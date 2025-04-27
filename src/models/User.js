@@ -26,8 +26,8 @@ const UserSchema = new mongoose.Schema(
     phone: {
       type: String,
       match: [
-        /^\+[1-9]\d{1,14}$/,
-        "Please add a valid phone number in E.164 format (e.g., +1234567890)"
+        /^(\+91)?[6-9]\d{9}$/,
+        "Please add a valid phone number in E.164 format (e.g., +919876543210)"
       ]
     },
     role: {
