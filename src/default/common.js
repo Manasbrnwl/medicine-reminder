@@ -45,21 +45,10 @@ function formatDateToString(date) {
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
 }
 
-function addISTOffset(time) {
-  // Convert input time to Date object if it's not already
-  const dateObj = new Date(time);
-  // Add 5 hours and 30 minutes (IST offset)
-  dateObj.setHours(dateObj.getHours() + 5);
-  dateObj.setMinutes(dateObj.getMinutes() + 30);
-  
-  return dateObj;
-}
-
 module.exports = {
   getCurrentDateTime,
   convertIntoISTTime,
   addHoursToDate,
   subtractHoursToDate,
-  formatDateToString,
-  addISTOffset
+  formatDateToString
 };

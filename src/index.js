@@ -50,6 +50,7 @@ io.on("connection", (socket) => {
     socket.join(userId);
     logger.info(`User ${userId} joined their personal room`);
   });
+
   // Listen for client disconnection
   socket.on("disconnect", () => {
     logger.info("Client disconnected:", socket.id);

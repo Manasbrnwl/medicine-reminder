@@ -4,11 +4,7 @@ const Reminder = require("../src/models/Reminder");
 const { sendPushNotification } = require("./notifications");
 const { sendReminderSMS, sendMissedDoseSMS } = require("./smsNotification");
 const { getRedisClient } = require("../config/redis");
-const {
-  getCurrentDateTime,
-  addHoursToDate,
-  addISTOffset
-} = require("../src/default/common");
+const { getCurrentDateTime, addHoursToDate } = require("../src/default/common");
 
 // Redis connection configuration using URL
 const redisConfig = {
@@ -155,7 +151,7 @@ missedDoseQueue.process(async (job) => {
       // Mark reminder as missed
       await Reminder.findByIdAndUpdate(reminderId, {
         status: "missed",
-        missedAt: addISTOffset(new Date())
+        missedAt: new Date()
       });
 
       // Notify parent if exists and not already notified
@@ -292,7 +288,7 @@ async function scheduleMissedDoseCheck(reminder, io) {
     const checkTime = new Date(reminderTime.getTime() + 30 * 60 * 1000); // 30 minutes in milliseconds
 
     // Only schedule if check time is in the future
-    const now = addISTOffset(new Date());
+    const now = new Date();
     const nowPlusBuffer = new Date(now.getTime() + 60 * 1000); // Add 1 minute buffer
 
     if (checkTime <= nowPlusBuffer) {
@@ -632,8 +628,10 @@ async function scheduleReminder(reminderId, reminderTime, io) {
       logger.warn(`Reminder time for ${reminderId} is in the past, skipping`);
       return false;
     }
+
     // Calculate delay in milliseconds
-    const delay = reminderTime.getTime() - Date.now() - 19800000;
+    const delay = reminderTime.getTime() - Date.now();
+
     // Add to reminder queue with delay - don't pass io object
     await reminderQueue.add(
       {
@@ -660,8 +658,8 @@ async function scheduleReminder(reminderId, reminderTime, io) {
 async function scheduleRemindersInRange(startDate, endDate, io, userId = null) {
   try {
     // Convert to Date objects if they're not already
-    startDate = new Date(addISTOffset(startDate));
-    endDate = new Date(addISTOffset(endDate));
+    startDate = new Date(startDate);
+    endDate = new Date(endDate);
 
     logger.info(
       `Scheduling reminders between ${startDate.toISOString()} and ${endDate.toISOString()}`
