@@ -93,3 +93,31 @@
 2025-04-13 11:36:04:364 [32minfo[39m: [32mScheduled 0 reminders between 2025-04-13T06:06:02.922Z and 2025-04-15T06:06:02.922Z[39m
 2025-04-13 11:36:04:364 [32minfo[39m: [32mInitialized 0 reminders for the next 2 days[39m
 2025-04-13 11:36:04:364 [32minfo[39m: [32mReminders initialized successfully (0 scheduled)[39m
+2025-04-27 13:46:26:4626 [32minfo[39m: [32mInitializing Bull queues...[39m
+2025-04-27 13:46:26:4626 [32minfo[39m: [32mBull queues initialized successfully[39m
+2025-04-27 13:46:26:4626 [32minfo[39m: [32mSocket.IO instance set globally[39m
+2025-04-27 13:46:28:4628 [32minfo[39m: [32mRedis connected successfully[39m
+2025-04-27 13:46:28:4628 [32minfo[39m: [32mSocket.IO instance set globally[39m
+2025-04-27 13:46:28:4628 [32minfo[39m: [32mInitializing Bull queues...[39m
+2025-04-27 13:46:28:4628 [32minfo[39m: [32mBull queues initialized successfully[39m
+2025-04-27 13:46:28:4628 [32minfo[39m: [32mStarting to initialize reminders...[39m
+2025-04-27 13:46:28:4628 [32minfo[39m: [32mScheduling reminders between 2025-04-27T13:46:28.615Z and 2025-04-29T13:46:28.615Z[39m
+2025-04-27 13:46:28:4628 [32minfo[39m: [32mFound 9 reminders in batch, processing...[39m
+2025-04-27 13:46:29:4629 [32minfo[39m: [32mFound 9 reminders, scheduled 9 reminders between 2025-04-27T13:46:28.615Z and 2025-04-29T13:46:28.615Z[39m
+2025-04-27 13:46:29:4629 [32minfo[39m: [32mInitialized 9 reminders for the next 2 days[39m
+2025-04-27 13:46:29:4629 [32minfo[39m: [32mInitialized 9 reminders on startup[39m
+2025-04-27 13:46:29:4629 [32minfo[39m: [32mServer running on port 3000[39m
+2025-04-27 13:47:58:4758 [32minfo[39m: [32mInitializing Bull queues...[39m
+2025-04-27 13:47:58:4758 [32minfo[39m: [32mBull queues initialized successfully[39m
+2025-04-27 13:47:59:4759 [32minfo[39m: [32mSocket.IO instance set globally[39m
+2025-04-27 13:48:01:481 [32minfo[39m: [32mRedis connected successfully[39m
+2025-04-27 13:48:02:482 [32minfo[39m: [32mSocket.IO instance set globally[39m
+2025-04-27 13:48:02:482 [32minfo[39m: [32mInitializing Bull queues...[39m
+2025-04-27 13:48:02:482 [32minfo[39m: [32mBull queues initialized successfully[39m
+2025-04-27 13:48:02:482 [32minfo[39m: [32mStarting to initialize reminders...[39m
+2025-04-27 13:48:02:482 [32minfo[39m: [32mScheduling reminders between 2025-04-27T08:18:02.072Z and 2025-04-29T08:18:02.072Z[39m
+2025-04-27 13:48:02:482 [32minfo[39m: [32mFound 9 reminders in batch, processing...[39m
+2025-04-27 13:48:02:482 [32minfo[39m: [32mFound 9 reminders, scheduled 9 reminders between 2025-04-27T08:18:02.072Z and 2025-04-29T08:18:02.072Z[39m
+2025-04-27 13:48:02:482 [32minfo[39m: [32mInitialized 9 reminders for the next 2 days[39m
+2025-04-27 13:48:02:482 [32minfo[39m: [32mInitialized 9 reminders on startup[39m
+2025-04-27 13:48:02:482 [32minfo[39m: [32mServer running on port 3000[39m
