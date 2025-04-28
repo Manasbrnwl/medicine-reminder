@@ -14,7 +14,8 @@ const {
   getDependentDashboardStats,
   scheduleRemindersInDateRange,
   scheduleAllUserReminders,
-  getRemindersWithMedicineDetails
+  getRemindersWithMedicineDetails,
+  removeDuplicateReminders
 } = require("../controllers/reminderController");
 const {
   protect,
@@ -23,6 +24,9 @@ const {
 } = require("../middleware/auth");
 
 const router = express.Router();
+
+// Route for removing duplicate reminders
+router.delete("/delete-duplicates", removeDuplicateReminders);
 
 // Protected routes
 router.use(protect);

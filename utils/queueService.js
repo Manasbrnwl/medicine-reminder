@@ -3,8 +3,7 @@ const logger = require("./logger");
 const Reminder = require("../src/models/Reminder");
 const { sendPushNotification } = require("./notifications");
 const { sendReminderSMS, sendMissedDoseSMS } = require("./smsNotification");
-const { getRedisClient } = require("../config/redis");
-const { getCurrentDateTime, addHoursToDate } = require("../src/default/common");
+const { getCurrentDateTime, addHoursToDate, addISTOffset } = require("../src/default/common");
 
 // Redis connection configuration using URL
 const redisConfig = {
@@ -151,7 +150,7 @@ missedDoseQueue.process(async (job) => {
       // Mark reminder as missed
       await Reminder.findByIdAndUpdate(reminderId, {
         status: "missed",
-        missedAt: new Date()
+        missedAt: addISTOffset(new Date())
       });
 
       // Notify parent if exists and not already notified
@@ -160,7 +159,7 @@ missedDoseQueue.process(async (job) => {
       }
 
       logger.info(
-        `Reminder ${reminderId} automatically marked as missed after 30 minutes of inactivity`
+        `Reminder ${reminderId} automatically marked as missed after 30 seconds of inactivity`
       );
     } else {
       // logger.info(
@@ -285,23 +284,23 @@ async function scheduleMissedDoseCheck(reminder, io) {
   try {
     // Set check time to exactly 30 minutes after reminder time
     const reminderTime = new Date(reminder.time);
-    const checkTime = new Date(reminderTime.getTime() + 30 * 60 * 1000); // 30 minutes in milliseconds
+    const checkTime = new Date(reminderTime.getTime() + 30 * 1000); // 30 seconds in milliseconds
 
     // Only schedule if check time is in the future
-    const now = new Date();
-    const nowPlusBuffer = new Date(now.getTime() + 60 * 1000); // Add 1 minute buffer
+    const now = addISTOffset(new Date());
+    const nowPlusBuffer = new Date(now.getTime() + 10 * 1000); // Add 10 seconds buffer
 
     if (checkTime <= nowPlusBuffer) {
-      // If check time is too close or in the past, schedule for 30 minutes from now
-      const adjustedCheckTime = new Date(now.getTime() + 30 * 60 * 1000);
+      // If check time is too close or in the past, schedule for 30 seconds from now
+      const adjustedCheckTime = new Date(now.getTime() + 30 * 1000);
       logger.info(
         `Missed dose check time for reminder ${
           reminder._id
         } adjusted to ${adjustedCheckTime.toISOString()}`
       );
 
-      // Calculate delay in milliseconds (30 minutes)
-      const delay = 30 * 60 * 1000;
+      // Calculate delay in milliseconds (30 seconds)
+      const delay = 30 * 1000;
 
       // Add to missed dose queue with delay
       await missedDoseQueue.add(
@@ -320,7 +319,7 @@ async function scheduleMissedDoseCheck(reminder, io) {
       );
 
       logger.info(
-        `Scheduled missed dose check for reminder ${reminder._id} in 30 minutes from now`
+        `Scheduled missed dose check for reminder ${reminder._id} in 30 seconds from now`
       );
       return true;
     }
@@ -348,8 +347,8 @@ async function scheduleMissedDoseCheck(reminder, io) {
       `Scheduled missed dose check for reminder ${
         reminder._id
       } at ${checkTime.toISOString()} (in ${Math.round(
-        delay / 1000 / 60
-      )} minutes)`
+        delay / 1000
+      )} seconds)`
     );
     return true;
   } catch (error) {
@@ -630,7 +629,7 @@ async function scheduleReminder(reminderId, reminderTime, io) {
     }
 
     // Calculate delay in milliseconds
-    const delay = reminderTime.getTime() - Date.now();
+    const delay = reminderTime.getTime() - Date.now() - 19800000;
 
     // Add to reminder queue with delay - don't pass io object
     await reminderQueue.add(
@@ -658,8 +657,8 @@ async function scheduleReminder(reminderId, reminderTime, io) {
 async function scheduleRemindersInRange(startDate, endDate, io, userId = null) {
   try {
     // Convert to Date objects if they're not already
-    startDate = new Date(startDate);
-    endDate = new Date(endDate);
+    startDate = new Date(addISTOffset(startDate));
+    endDate = new Date(addISTOffset(endDate));
 
     logger.info(
       `Scheduling reminders between ${startDate.toISOString()} and ${endDate.toISOString()}`

@@ -92,6 +92,22 @@ app.get("/api/health", async (req, res) => {
   }
 });
 
+//cleanup queues
+app.get("/api/cleanup", async (req, res) => {
+  try {
+    await cleanupQueues();
+    res.status(201).json({
+      success: true,
+      message: "Queues cleaned up successfully"
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
 // Initialize all active reminders
 const initializeApp = async () => {
   try {

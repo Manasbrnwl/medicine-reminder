@@ -1,5 +1,6 @@
 const User = require("../models/User");
 const { sendEmailNotification } = require("../../utils/notifications");
+const { addISTOffset } = require("../default/common");
 
 // @desc    Get subscription status
 // @route   GET /api/subscription/status
@@ -41,9 +42,9 @@ exports.upgradeSubscription = async (req, res) => {
 
     // Update subscription details
     user.subscription.status = "premium";
-    user.subscription.startDate = new Date();
-    user.subscription.endDate = new Date(
-      new Date().setFullYear(new Date().getFullYear() + 1)
+    user.subscription.startDate = addISTOffset(new Date());
+    user.subscription.endDate = addISTOffset(
+      new Date(new Date().setFullYear(new Date().getFullYear() + 1))
     );
     user.subscription.autoRenew = true;
     user.subscription.paymentMethod = paymentMethod;
@@ -97,8 +98,8 @@ exports.cancelSubscription = async (req, res) => {
     // Update subscription details
     user.subscription.autoRenew = false;
     user.subscription.status = "free";
-    user.subscription.endDate = new Date(
-      new Date().setDate(new Date().getDate() + 30)
+    user.subscription.endDate = addISTOffset(
+      new Date(new Date().setDate(new Date().getDate() + 30))
     );
 
     await user.save();

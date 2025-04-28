@@ -37,7 +37,7 @@ const ReminderSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ["pending", "completed", "partially_completed", "missed", "snoozed"],
+    enum: ["pending", "taken", "missed", "snoozed"],
     default: "pending"
   },
   snoozedUntil: {
