@@ -154,7 +154,7 @@ exports.createReminder = async (req, res) => {
             scheduleStart: scheduleStart || new Date(),
             scheduleEnd: scheduleEnd || null,
             frequency,
-            time: new Date(time),
+            time: addISTOffset(new Date(time)),
             repeat: repeat || "none",
             daysOfWeek: daysOfWeek || [],
             daysOfMonth: daysOfMonth || [],

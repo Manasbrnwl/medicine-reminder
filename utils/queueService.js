@@ -219,7 +219,6 @@ async function sendNotifications(reminder, io) {
     // Send socket.io push notification
     if (user.notificationPreferences?.push) {
       sendPushNotification(io, user._id.toString(), notification);
-      logger.info(`Push notification sent to user ${user._id}`);
     }
 
     // Send SMS notification if enabled
