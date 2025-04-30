@@ -47,7 +47,7 @@ io.on("connection", (socket) => {
   logger.info("New client connected:", socket.id);
 
   // Listen for client joining a room (used for personal notifications)
-  socket.on("join", (userId) => {
+  socket.on("join", ({userId}) => {
     socket.join(userId);
     logger.info(`User ${userId} joined their personal room`);
   });
