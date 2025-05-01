@@ -7,8 +7,8 @@ const {
   linkDependent,
   unlinkDependent,
   getDependents,
-  requestOTPViaEmail,
-  verifyOTPAndLogin
+  verifyOTPAndLogin,
+  requestOTP
 } = require("../controllers/userController");
 const { protect } = require("../middleware/auth");
 
@@ -17,7 +17,7 @@ const router = express.Router();
 // Public routes
 router.post("/", registerUser);
 router.post("/login", loginUser);
-router.post("/request-otp", requestOTPViaEmail);
+router.post("/request-otp", requestOTP);
 router.post("/verify-otp", verifyOTPAndLogin);
 
 // Protected routes

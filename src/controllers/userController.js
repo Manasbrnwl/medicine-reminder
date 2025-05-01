@@ -226,6 +226,14 @@ exports.linkDependent = async (req, res) => {
       });
     }
 
+    // Check if the dependent is user itself
+    if(parentId === dependent._id.toString()){
+      return res.status(400).json({
+        success: false,
+        message: "Cannot link a user to themselves"
+      });
+    }
+
     // Check if already linked
     const parent = await User.findById(parentId);
     if (parent.dependents.includes(dependent._id)) {
@@ -325,7 +333,7 @@ exports.getDependents = async (req, res) => {
 // @desc    Request OTP via email
 // @route   POST /api/users/request-otp-email
 // @access  Public
-exports.requestOTPViaEmail = async (req, res) => {
+exports.requestOTP = async (req, res) => {
   try {
     const { email } = req.body;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

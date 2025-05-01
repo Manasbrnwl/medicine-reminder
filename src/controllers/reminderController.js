@@ -9,9 +9,7 @@ const {
   scheduleRemindersInRange
 } = require("../../utils/queueService");
 
-const {
-  addISTOffset
-} = require("../default/common");
+const { addISTOffset } = require("../default/common");
 const {
   scheduleRemindersInRange: queueServiceScheduleRemindersInRange
 } = require("../../utils/queueService");
@@ -359,6 +357,12 @@ exports.markMedicineAsTaken = async (req, res) => {
       return res.status(403).json({
         success: false,
         message: "Not authorized to update this reminder"
+      });
+    }
+    if (reminder.status == "missed") {
+      return res.status(400).json({
+        success: false,
+        message: "Reminder is missed"
       });
     }
     reminder.status = "taken";
@@ -928,6 +932,7 @@ exports.getRemindersWithMedicineDetails = async (req, res) => {
     const today = new Date(date);
     const startOfDay = new Date(today.setHours(5, 30, 0, 0));
     const endOfDay = new Date(today.setHours(29, 29, 59, 999));
+
     // Execute query
     const reminders = await Reminder.find({
       user: req.user.id,
@@ -965,24 +970,23 @@ exports.getRemindersWithMedicineDetails = async (req, res) => {
   }
 };
 
-
 exports.removeDuplicateReminders = async (req, res) => {
   try {
     const duplicates = await Reminder.aggregate([
       {
         $group: {
           _id: { time: "$time", user: "$user" },
-          ids: { $addToSet: "$_id" },            
-          count: { $sum: 1 }                     
+          ids: { $addToSet: "$_id" },
+          count: { $sum: 1 }
         }
       },
       {
         $match: {
-          count: { $gt: 1 }                      
+          count: { $gt: 1 }
         }
       }
     ]);
-    
+
     for (const doc of duplicates) {
       const [keepId, ...deleteIds] = doc.ids;
       await Reminder.deleteMany({
@@ -993,12 +997,11 @@ exports.removeDuplicateReminders = async (req, res) => {
       success: true,
       message: "Duplicate reminders removed successfully"
     });
-  }
-  catch (error) {
+  } catch (error) {
     res.status(500).json({
       success: false,
       message: "Server error",
-      error: process.env.NODE_ENV === "development"? error.message : undefined
+      error: process.env.NODE_ENV === "development" ? error.message : undefined
     });
   }
-}
+};

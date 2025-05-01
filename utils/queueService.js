@@ -246,27 +246,10 @@ function formatNotification(reminder) {
     // Extract medicine names
     const medicineNames = reminder.medicine?.name;
 
-    // Format time
-    const time = new Date(reminder.time);
-    const timeFormatted = time.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit"
-    });
-
     return {
       title: `Medicine Reminder`,
-      body: `It's time to take ${medicineNames} at ${timeFormatted}`,
-      data: {
-        reminderId: reminder._id.toString(),
-        medicines: {
-          id: reminder.medicine?._id.toString(),
-          name: reminder.medicine?.name || "unknown medication",
-          dosage: reminder.medicine?.dosage
-        },
-        time: time.toISOString(),
-        timeFormatted: timeFormatted,
-        user: reminder.user?._id.toString()
-      }
+      body: `It's time to take ${medicineNames}`,
+      data: { reminderId: reminder._id.toString() }
     };
   } catch (error) {
     logger.error(`Error formatting notification: ${error.message}`);
@@ -283,23 +266,23 @@ async function scheduleMissedDoseCheck(reminder, io) {
   try {
     // Set check time to exactly 30 minutes after reminder time
     const reminderTime = new Date(reminder.time);
-    const checkTime = new Date(reminderTime.getTime() + 30 * 1000); // 30 seconds in milliseconds
+    const checkTime = new Date(reminderTime.getTime() + 5 * 60 * 1000); // 5 minutes in milliseconds
 
     // Only schedule if check time is in the future
     const now = addISTOffset(new Date());
     const nowPlusBuffer = new Date(now.getTime() + 10 * 1000); // Add 10 seconds buffer
 
     if (checkTime <= nowPlusBuffer) {
-      // If check time is too close or in the past, schedule for 30 seconds from now
-      const adjustedCheckTime = new Date(now.getTime() + 30 * 1000);
+      // If check time is too close or in the past, schedule for 5 minutes from now
+      const adjustedCheckTime = new Date(now.getTime() + 5 * 60 * 1000);
       logger.info(
         `Missed dose check time for reminder ${
           reminder._id
         } adjusted to ${adjustedCheckTime.toISOString()}`
       );
 
-      // Calculate delay in milliseconds (30 seconds)
-      const delay = 30 * 1000;
+      // Calculate delay in milliseconds (5 minutes)
+      const delay = 5 * 60 * 1000;
 
       // Add to missed dose queue with delay
       await missedDoseQueue.add(
@@ -318,7 +301,7 @@ async function scheduleMissedDoseCheck(reminder, io) {
       );
 
       logger.info(
-        `Scheduled missed dose check for reminder ${reminder._id} in 30 seconds from now`
+        `Scheduled missed dose check for reminder ${reminder._id} in 5 minutes from now`
       );
       return true;
     }
@@ -346,8 +329,8 @@ async function scheduleMissedDoseCheck(reminder, io) {
       `Scheduled missed dose check for reminder ${
         reminder._id
       } at ${checkTime.toISOString()} (in ${Math.round(
-        delay / 1000
-      )} seconds)`
+        delay / 60 / 1000
+      )} minutes)`
     );
     return true;
   } catch (error) {
@@ -373,13 +356,8 @@ async function notifyParent(reminder, io) {
     const notification = {
       title: "Missed Dose Alert",
       body: `${reminder?.user?.name} has ${isAutomatic}missed their dose of ${medicineNames}`,
-      data: {
-        reminderId: reminder._id,
-        dependentId: reminder.user._id,
-        time: reminder.time.toISOString().split("T")[1].split(".")[0],
-        automatic: !!reminder.missedAt
-      }
-    };
+      data: { reminderId: reminder._id.toString() }
+      };
 
     // Send push notification to parent
     if (parent.notificationPreferences?.push) {
