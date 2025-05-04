@@ -343,8 +343,8 @@ async function scheduleMissedDoseCheck(reminder, io) {
 async function notifyParent(reminder, io) {
   try {
     const User = require("../src/models/User");
-    const parent = await User.findById(reminder.user.parent);
-
+    const parent = await User.findById(reminder.user.dependents);
+    
     if (!parent) return false;
 
     // Format notification for parent

@@ -936,7 +936,6 @@ exports.getRemindersWithMedicineDetails = async (req, res) => {
     // Execute query
     const reminders = await Reminder.find({
       user: req.user.id,
-      status,
       time: { $gte: startOfDay, $lte: endOfDay }
     })
       .populate({
@@ -970,7 +969,7 @@ exports.getRemindersWithMedicineDetails = async (req, res) => {
   }
 };
 
-exports.removeDuplicateReminders = async (req, res) => {
+exports.removeDuplicateReminders = async (req, res, is_function) => {
   try {
     const duplicates = await Reminder.aggregate([
       {
@@ -993,15 +992,23 @@ exports.removeDuplicateReminders = async (req, res) => {
         _id: { $in: deleteIds }
       });
     }
-    res.status(201).json({
-      success: true,
-      message: "Duplicate reminders removed successfully"
-    });
+    if (is_function) {
+      return console.log("Duplicate reminders removed successfully");
+    } else {
+      res.status(201).json({
+        success: true,
+        message: "Duplicate reminders removed successfully"
+      });
+    }
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined
-    });
+    if (is_function) {
+      return console.log("Error: Duplicate reminders removed unsuccessfully");
+    } else {
+      res.status(500).json({
+        success: false,
+        message: "Server error",
+        error: process.env.NODE_ENV === "development" ? error.message : undefined
+      });
+    }
   }
 };

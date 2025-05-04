@@ -16,6 +16,7 @@ const {
   cleanupQueues
 } = require("../utils/queueService");
 const path = require("path");
+const { removeDuplicateReminders } = require("./controllers/reminderController");
 
 // Load env vars
 dotenv.config();
@@ -123,12 +124,16 @@ const initializeApp = async () => {
     // Make sure queues are initialized
     await initializeQueues();
 
+    removeDuplicateReminders(1,1,true)
+
     // Initialize reminders using queue service
     const count = await initializeReminders(io);
     logger.info(`Initialized ${count} reminders on startup`);
 
     // Set up a daily job to refresh reminders
     schedule.scheduleJob("0 0 * * *", async () => {
+      // remove any duplicate reminders
+      removeDuplicateReminders(1,1,true)
       const refreshCount = await initializeReminders(io);
       logger.info(`Daily refresh: Initialized ${refreshCount} reminders`);
     });
