@@ -264,7 +264,7 @@ function formatNotification(reminder) {
 // Schedule a check for missed doses
 async function scheduleMissedDoseCheck(reminder, io) {
   try {
-    // Set check time to exactly 30 minutes after reminder time
+    // Set check time to exactly 5 minutes after reminder time
     const reminderTime = new Date(reminder.time);
     const checkTime = new Date(reminderTime.getTime() + 5 * 60 * 1000); // 5 minutes in milliseconds
 
