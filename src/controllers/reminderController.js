@@ -508,8 +508,13 @@ exports.snoozeReminder = async (req, res) => {
 exports.getDependentReminders = async (req, res) => {
   try {
     const { dependentId } = req.params;
-    const { startDate, endDate, status } = req.query;
+    const { date } = req.query;
 
+    const today = new Date(date);
+    const startOfDay = new Date(today.setHours(5, 30, 0, 0));
+    const endOfDay = new Date(today.setHours(29, 29, 59, 999));
+
+    // Execute query
     // Check if the current user is a parent of the dependent
     const parent = await User.findById(req.user.id);
     if (!parent.dependents.includes(dependentId)) {
@@ -535,10 +540,13 @@ exports.getDependentReminders = async (req, res) => {
     }
 
     // Execute query
-    const reminders = await Reminder.find(queryObj)
+    const reminders = await Reminder.find({
+      user: dependentId,
+      time: { $gte: startOfDay, $lte: endOfDay }
+    })
       .populate({
         path: "medicine",
-        select: "name id category dosage instructions"
+        select: "name category dosage instructions"
       })
       .sort({ time: 1 });
 
@@ -1007,7 +1015,8 @@ exports.removeDuplicateReminders = async (req, res, is_function) => {
       res.status(500).json({
         success: false,
         message: "Server error",
-        error: process.env.NODE_ENV === "development" ? error.message : undefined
+        error:
+          process.env.NODE_ENV === "development" ? error.message : undefined
       });
     }
   }
