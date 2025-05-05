@@ -524,21 +524,6 @@ exports.getDependentReminders = async (req, res) => {
       });
     }
 
-    // Build query
-    const queryObj = { user: dependentId };
-
-    // Add date range filter if provided
-    if (startDate || endDate) {
-      queryObj.time = {};
-      if (startDate) queryObj.time.$gte = new Date(startDate);
-      if (endDate) queryObj.time.$lte = new Date(endDate);
-    }
-
-    // Add status filter if provided
-    if (status) {
-      queryObj.status = status;
-    }
-
     // Execute query
     const reminders = await Reminder.find({
       user: dependentId,
@@ -550,10 +535,21 @@ exports.getDependentReminders = async (req, res) => {
       })
       .sort({ time: 1 });
 
+    // Format response with required fields
+    const formattedReminders = reminders.map((reminder) => {
+      return {
+        reminder_id: reminder._id,
+        time: reminder.time.toISOString().split("T")[1].split(".")[0],
+        status: reminder.status,
+        medicine_name: reminder.medicine?.name || "Unknown",
+        medicine_category: reminder.medicine?.category || "Unknown"
+      };
+    });
+
     res.json({
       success: true,
-      count: reminders.length,
-      data: reminders
+      count: formattedReminders.length,
+      data: formattedReminders
     });
   } catch (error) {
     res.status(500).json({
