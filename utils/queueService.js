@@ -3,7 +3,11 @@ const logger = require("./logger");
 const Reminder = require("../src/models/Reminder");
 const { sendPushNotification } = require("./notifications");
 const { sendReminderSMS, sendMissedDoseSMS } = require("./smsNotification");
-const { getCurrentDateTime, addHoursToDate, addISTOffset } = require("../src/default/common");
+const {
+  getCurrentDateTime,
+  addHoursToDate,
+  addISTOffset
+} = require("../src/default/common");
 
 // Redis connection configuration using URL
 const redisConfig = {
@@ -344,7 +348,7 @@ async function notifyParent(reminder, io) {
   try {
     const User = require("../src/models/User");
     const parent = await User.findById(reminder.user.dependents);
-    
+
     if (!parent) return false;
 
     // Format notification for parent
@@ -355,13 +359,25 @@ async function notifyParent(reminder, io) {
 
     const notification = {
       title: "Missed Dose Alert",
+      body: `You have ${isAutomatic}missed your dose of ${medicineNames}`,
+      data: { reminderId: reminder._id.toString() }
+    };
+
+    const notificationToParent = {
+      title: "Missed Dose Alert",
       body: `${reminder?.user?.name} has ${isAutomatic}missed their dose of ${medicineNames}`,
       data: { reminderId: reminder._id.toString() }
-      };
+    };
+
+    // Send push notification to user
+    if (reminder.user) {
+      sendPushNotification(io, reminder.user.toString(), notification);
+      logger.info(`Push notification sent to user ${reminder.user._id}`);
+    }
 
     // Send push notification to parent
     if (parent.notificationPreferences?.push) {
-      sendPushNotification(io, parent._id.toString(), notification);
+      sendPushNotification(io, parent._id.toString(), notificationToParent);
       logger.info(`Push notification sent to parent ${parent._id}`);
     }
 
@@ -649,10 +665,10 @@ async function scheduleRemindersInRange(startDate, endDate, io, userId = null) {
     };
 
     // Add user filter if provided
-    if (userId) {
-      query.user = userId;
-      logger.info(`Filtering reminders for user: ${userId}`);
-    }
+    // if (userId) {
+    //   query.user = userId;
+    //   logger.info(`Filtering reminders for user: ${userId}`);
+    // }
 
     // Process reminders in batches to avoid memory issues
     const batchSize = 100;

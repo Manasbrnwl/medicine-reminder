@@ -63,7 +63,7 @@ exports.sendEmailNotification = async (email, subject, text, html) => {
 exports.sendPushNotification = (io, userId, data) => {
   try {
     io.to(userId).emit("notification", data);
-    logger.info(`Push notification sent to user ${userId}`);
+    logger.info(`Push notification send!`);
     return true;
   } catch (error) {
     logger.error(`Push notification error: ${error.message}`);
