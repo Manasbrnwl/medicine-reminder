@@ -253,14 +253,14 @@ function formatNotification(reminder) {
     return {
       title: `Medicine Reminder`,
       body: `It's time to take ${medicineNames}`,
-      data: { reminderId: reminder._id.toString() }
+      reminderId: reminder._id.toString()
     };
   } catch (error) {
     logger.error(`Error formatting notification: ${error.message}`);
     return {
       title: "Medicine Reminder",
       body: "It's time to take your medication",
-      data: { reminderId: reminder._id.toString() }
+      reminderId: reminder._id.toString()
     };
   }
 }
