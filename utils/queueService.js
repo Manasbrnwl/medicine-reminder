@@ -104,15 +104,15 @@ reminderQueue.process(async (job) => {
       return { success: false, reason: "reminder_inactive_or_completed" };
     }
 
-    // Send notifications using the global socket.io instance
-    await sendNotifications(reminder, globalIo);
+    // Send notifications
+    await sendNotifications(reminder);
 
     // Schedule missed dose check
-    await scheduleMissedDoseCheck(reminder, globalIo);
+    await scheduleMissedDoseCheck(reminder);
 
     // Schedule next occurrence if it's a recurring reminder
     if (reminder.repeat !== "none" && reminder.scheduleEnd) {
-      await scheduleNextRecurrence(reminder, globalIo);
+      await scheduleNextRecurrence(reminder);
     }
 
     return { success: true };
@@ -126,7 +126,6 @@ reminderQueue.process(async (job) => {
 missedDoseQueue.process(async (job) => {
   try {
     const { reminderId } = job.data;
-    // logger.info(`Processing missed dose check for reminder: ${reminderId}`);
 
     // Reload reminder to get current status
     const reminder = await Reminder.findById(reminderId)
@@ -159,16 +158,12 @@ missedDoseQueue.process(async (job) => {
 
       // Notify parent if exists and not already notified
       if (reminder.user?.parent && !reminder.parentNotified) {
-        await notifyParent(reminder, globalIo);
+        await notifyParent(reminder);
       }
 
       logger.info(
         `Reminder ${reminderId} automatically marked as missed after 30 seconds of inactivity`
       );
-    } else {
-      // logger.info(
-      //   `Reminder ${reminderId} has no pending medicines, no action needed`
-      // );
     }
 
     return { success: true };
@@ -200,7 +195,7 @@ recurringReminderQueue.process(async (job) => {
     }
 
     // Create next occurrence based on reminder pattern
-    const result = await createNextOccurrence(reminder, globalIo);
+    const result = await createNextOccurrence(reminder);
     return { success: true, nextReminderId: result?.reminderId };
   } catch (error) {
     logger.error(`Error creating recurring reminder: ${error.message}`);
@@ -209,7 +204,7 @@ recurringReminderQueue.process(async (job) => {
 });
 
 // Send notifications for a reminder via all enabled channels
-async function sendNotifications(reminder, io) {
+async function sendNotifications(reminder) {
   try {
     const user = reminder.user;
     if (!user) {
@@ -220,9 +215,9 @@ async function sendNotifications(reminder, io) {
     // Format notification
     const notification = formatNotification(reminder);
 
-    // Send socket.io push notification
-    if (user.notificationPreferences?.push) {
-      sendPushNotification(io, user._id.toString(), notification);
+    // Send FCM push notification if enabled and token exists
+    if (user.notificationPreferences?.push && user.fcmToken) {
+      await sendPushNotification(user.fcmToken, notification);
     }
 
     // Send SMS notification if enabled
@@ -244,7 +239,7 @@ async function sendNotifications(reminder, io) {
   }
 }
 
-// Format notification object for socket.io
+// Format notification object for FCM
 function formatNotification(reminder) {
   try {
     // Extract medicine names
@@ -252,21 +247,27 @@ function formatNotification(reminder) {
 
     return {
       title: `Medicine Reminder`,
-      body: `It's time to take ${medicineNames}`,
-      reminderId: reminder._id.toString()
+      body: `It's time to take - ${medicineNames}`,
+      data: {
+        reminderId: reminder._id.toString(),
+        type: "reminder"
+      }
     };
   } catch (error) {
     logger.error(`Error formatting notification: ${error.message}`);
     return {
       title: "Medicine Reminder",
       body: "It's time to take your medication",
-      reminderId: reminder._id.toString()
+      data: {
+        reminderId: reminder._id.toString(),
+        type: "reminder"
+      }
     };
   }
 }
 
 // Schedule a check for missed doses
-async function scheduleMissedDoseCheck(reminder, io) {
+async function scheduleMissedDoseCheck(reminder) {
   try {
     // Set check time to exactly 5 minutes after reminder time
     const reminderTime = new Date(reminder.time);
@@ -344,40 +345,44 @@ async function scheduleMissedDoseCheck(reminder, io) {
 }
 
 // Notify parent of missed dose
-async function notifyParent(reminder, io) {
+async function notifyParent(reminder) {
   try {
     const User = require("../src/models/User");
-    const parent = await User.findById(reminder.user.dependents);
+    const parent = await User.findById(reminder.user.parent);
 
     if (!parent) return false;
 
     // Format notification for parent
     const isAutomatic = reminder.missedAt ? "automatically " : "";
-
-    // Prepare notification data
     const medicineNames = reminder.medicine?.name;
 
     const notification = {
       title: "Missed Dose Alert",
       body: `You have ${isAutomatic}missed your dose of ${medicineNames}`,
-      data: { reminderId: reminder._id.toString() }
+      data: {
+        reminderId: reminder._id.toString(),
+        type: "missed_dose"
+      }
     };
 
     const notificationToParent = {
       title: "Missed Dose Alert",
       body: `${reminder?.user?.name} has ${isAutomatic}missed their dose of ${medicineNames}`,
-      data: { reminderId: reminder._id.toString() }
+      data: {
+        reminderId: reminder._id.toString(),
+        type: "missed_dose"
+      }
     };
 
     // Send push notification to user
-    if (reminder.user) {
-      sendPushNotification(io, reminder.user.toString(), notification);
+    if (reminder.user.fcmToken) {
+      await sendPushNotification(reminder.user.fcmToken, notification);
       logger.info(`Push notification sent to user ${reminder.user._id}`);
     }
 
     // Send push notification to parent
-    if (parent.notificationPreferences?.push) {
-      sendPushNotification(io, parent._id.toString(), notificationToParent);
+    if (parent.notificationPreferences?.push && parent.fcmToken) {
+      await sendPushNotification(parent.fcmToken, notificationToParent);
       logger.info(`Push notification sent to parent ${parent._id}`);
     }
 
@@ -405,7 +410,7 @@ async function notifyParent(reminder, io) {
 }
 
 // Schedule next occurrence of recurring reminder
-async function scheduleNextRecurrence(reminder, io) {
+async function scheduleNextRecurrence(reminder) {
   try {
     // Calculate next time based on frequency and repeat pattern
     const nextTime = calculateNextTime(reminder);
@@ -442,7 +447,7 @@ async function scheduleNextRecurrence(reminder, io) {
     const savedReminder = await newReminder.save();
 
     // Schedule the notification
-    await scheduleReminder(savedReminder._id, nextTime, io);
+    await scheduleReminder(savedReminder._id, nextTime);
 
     logger.info(
       `Created and scheduled next occurrence for reminder ${
@@ -457,7 +462,7 @@ async function scheduleNextRecurrence(reminder, io) {
 }
 
 // Create next reminder occurrence
-async function createNextOccurrence(reminder, io) {
+async function createNextOccurrence(reminder) {
   try {
     // Calculate next time based on frequency and repeat pattern
     const nextTime = calculateNextTime(reminder);
@@ -492,7 +497,7 @@ async function createNextOccurrence(reminder, io) {
     const savedReminder = await newReminder.save();
 
     // Schedule the notification
-    await scheduleReminder(savedReminder._id, nextTime, io);
+    await scheduleReminder(savedReminder._id, nextTime);
 
     logger.info(
       `Created and scheduled next occurrence for reminder ${
@@ -613,7 +618,7 @@ function calculateNextTime(reminder) {
 }
 
 // Schedule a reminder notification
-async function scheduleReminder(reminderId, reminderTime, io) {
+async function scheduleReminder(reminderId, reminderTime) {
   try {
     // Make sure reminderTime is in the future
     if (reminderTime <= new Date()) {
@@ -647,7 +652,7 @@ async function scheduleReminder(reminderId, reminderTime, io) {
 }
 
 // Schedule reminders within a date range
-async function scheduleRemindersInRange(startDate, endDate, io, userId = null) {
+async function scheduleRemindersInRange(startDate, endDate) {
   try {
     // Convert to Date objects if they're not already
     startDate = new Date(addISTOffset(startDate));
@@ -663,12 +668,6 @@ async function scheduleRemindersInRange(startDate, endDate, io, userId = null) {
       active: true,
       status: { $in: ["pending", "snoozed"] }
     };
-
-    // Add user filter if provided
-    // if (userId) {
-    //   query.user = userId;
-    //   logger.info(`Filtering reminders for user: ${userId}`);
-    // }
 
     // Process reminders in batches to avoid memory issues
     const batchSize = 100;
@@ -709,7 +708,7 @@ async function scheduleRemindersInRange(startDate, endDate, io, userId = null) {
 
         // Only schedule if time is in the future
         if (reminderTime > new Date()) {
-          await scheduleReminder(reminder._id, reminderTime, io);
+          await scheduleReminder(reminder._id, reminderTime);
           totalScheduled++;
           logger.debug(
             `Scheduled reminder ${
@@ -740,15 +739,14 @@ async function scheduleRemindersInRange(startDate, endDate, io, userId = null) {
 }
 
 // Initialize reminders for upcoming period
-async function initializeReminders(io) {
+async function initializeReminders() {
   try {
     logger.info("Starting to initialize reminders...");
 
     // Schedule reminders for the next 2 days
     const scheduledCount = await scheduleRemindersInRange(
       getCurrentDateTime(),
-      addHoursToDate(48),
-      io
+      addHoursToDate(48)
     );
 
     logger.info(`Initialized ${scheduledCount} reminders for the next 2 days`);
@@ -825,10 +823,9 @@ async function getQueuesStatus() {
 /**
  * Schedule all active reminders for a specific user
  * @param {string} userId - User ID to schedule reminders for
- * @param {Object} io - Socket.io instance
  * @returns {Promise<number>} - Number of scheduled reminders
  */
-async function scheduleUserReminders(userId, io) {
+async function scheduleUserReminders(userId) {
   try {
     logger.info(`Scheduling reminders for user ${userId}`);
 
@@ -836,7 +833,6 @@ async function scheduleUserReminders(userId, io) {
     const count = await scheduleRemindersInRange(
       getCurrentDateTime(),
       addHoursToDate(0.3),
-      io,
       userId
     );
 
@@ -898,9 +894,8 @@ const cancelReminder = async (reminderId) => {
  * Reschedule a snoozed reminder
  * @param {string} reminderId - Reminder ID
  * @param {Date|string} snoozedUntil - Time to snooze until
- * @param {Object} io - Socket.io instance
  */
-const snoozeReminder = async (reminderId, snoozedUntil, io) => {
+const snoozeReminder = async (reminderId, snoozedUntil) => {
   try {
     // Parse snoozed time
     const snoozedTime = new Date(snoozedUntil);
@@ -929,7 +924,7 @@ const snoozeReminder = async (reminderId, snoozedUntil, io) => {
     await cancelReminder(reminderId);
 
     // Schedule new reminder with the snoozed time
-    await scheduleReminder(reminderId, snoozedTime, io);
+    await scheduleReminder(reminderId, snoozedTime);
 
     logger.info(
       `Snoozed reminder ${reminderId} until ${snoozedTime.toISOString()}`

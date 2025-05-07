@@ -227,7 +227,7 @@ exports.linkDependent = async (req, res) => {
     }
 
     // Check if the dependent is user itself
-    if(parentId === dependent._id.toString()){
+    if (parentId === dependent._id.toString()) {
       return res.status(400).json({
         success: false,
         message: "Cannot link a user to themselves"
@@ -396,8 +396,10 @@ exports.verifyOTPAndLogin = async (req, res) => {
     }
 
     // OTP verification successful, create token and log user in
-    const user = await result.user.populate("dependents", "_id name email phone");
-    console.log(user)
+    const user = await result.user.populate(
+      "dependents",
+      "_id name email phone"
+    );
 
     res.json({
       success: true,
@@ -417,6 +419,46 @@ exports.verifyOTPAndLogin = async (req, res) => {
         notificationPreferences: user.notificationPreferences,
         token: generateToken(user._id)
       }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined
+    });
+  }
+};
+
+// @desc    Update user's FCM token
+// @route   PUT /api/users/fcm-token
+// @access  Private
+exports.updateFCMToken = async (req, res) => {
+  try {
+    const { fcmToken } = req.body;
+
+    if (!fcmToken) {
+      return res.status(400).json({
+        success: false,
+        message: "FCM token is required"
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { fcmToken },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "FCM token updated successfully"
     });
   } catch (error) {
     res.status(500).json({

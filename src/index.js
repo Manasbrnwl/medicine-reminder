@@ -1,97 +1,66 @@
 const express = require("express");
-const http = require("http");
-const socketIO = require("socket.io");
-const dotenv = require("dotenv");
 const cors = require("cors");
+const helmet = require("helmet");
+const xss = require("xss-clean");
+const rateLimit = require("express-rate-limit");
+const hpp = require("hpp");
+const dotenv = require("dotenv");
 const connectDB = require("../config/db");
 const { connectRedis } = require("../config/redis");
 const schedule = require("node-schedule");
 const morgan = require("morgan");
 const logger = require("../utils/logger");
+const { initializeReminders } = require("../utils/queueService");
+const { initializeQueues } = require("../utils/queueService");
 const {
-  initializeReminders,
-  getQueuesStatus,
-  setSocketIo,
-  initializeQueues,
-  cleanupQueues
-} = require("../utils/queueService");
-const path = require("path");
-const { removeDuplicateReminders } = require("./controllers/reminderController");
+  removeDuplicateReminders
+} = require("./controllers/reminderController");
+const { getFirebaseAdmin } = require("../utils/firebase");
 
 // Load env vars
 dotenv.config();
 
-// Initialize Express app
+// Initialize Firebase Admin SDK
+getFirebaseAdmin();
+
 const app = express();
 
-// Create HTTP server
-const server = http.createServer(app);
-
-// Initialize Socket.io
-const io = socketIO(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  }
-});
-
-// Set the global Socket.IO instance
-setSocketIo(io);
-
-// Middleware
-app.use(cors());
+// Body parser
 app.use(express.json());
-app.use(morgan("dev"));
 
-// Socket.io connection
-io.on("connection", (socket) => {
-  logger.info("New client connected:", socket.id);
+// Enable CORS
+app.use(cors());
 
-  // Listen for client joining a room (used for personal notifications)
-  socket.on("join", ({userId}) => {
-    socket.join(userId);
-    logger.info(`User ${userId} joined their personal room`);
-  });
+// Set security headers
+app.use(helmet());
 
-  // Listen for client disconnection
-  socket.on("disconnect", () => {
-    logger.info("Client disconnected:", socket.id);
-  });
+// Prevent XSS attacks
+app.use(xss());
+
+const limiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
 });
+app.use(limiter);
 
-// Global socket.io access for other modules
-app.set("io", io);
+// Prevent http param pollution
+app.use(hpp());
 
-// Routes
-app.use("/api/users", require("./routes/userRoutes"));
-app.use("/api/medicines", require("./routes/medicineRoutes"));
-app.use("/api/reminders", require("./routes/reminderRoutes"));
-app.use("/api/subscription", require("./routes/subscriptionRoutes"));
+// Dev logging middleware
+if (process.env.NODE_ENV === "development") {
+  app.use(morgan("dev"));
+}
 
 // Basic route
 app.get("/", (req, res) => {
   res.send("Medicine Reminder API is running");
 });
 
-app.use("/images", express.static(path.join(__dirname, "images")));
-
-// Health check route with queue status
-app.get("/api/health", async (req, res) => {
-  try {
-    const queueStatus = await getQueuesStatus();
-    res.json({
-      status: "healthy",
-      uptime: process.uptime(),
-      timestamp: Date.now(),
-      queues: queueStatus
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: "unhealthy",
-      error: error.message
-    });
-  }
-});
+// Routes
+app.use("/api/users", require("./routes/userRoutes"));
+app.use("/api/medicines", require("./routes/medicineRoutes"));
+app.use("/api/reminders", require("./routes/reminderRoutes"));
+app.use("/api/subscription", require("./routes/subscriptionRoutes"));
 
 //cleanup queues
 app.get("/api/cleanup", async (req, res) => {
@@ -118,35 +87,32 @@ const initializeApp = async () => {
     // Connect to Redis
     await connectRedis();
 
-    // Set global socket.io instance for notifications
-    setSocketIo(io);
-
     // Make sure queues are initialized
     await initializeQueues();
 
-    removeDuplicateReminders(1,1,true)
+    removeDuplicateReminders(1, 1, true);
 
     // Initialize reminders using queue service
-    const count = await initializeReminders(io);
+    const count = await initializeReminders();
     logger.info(`Initialized ${count} reminders on startup`);
 
     // Set up a daily job to refresh reminders
     schedule.scheduleJob("0 0 * * *", async () => {
       // remove any duplicate reminders
-      removeDuplicateReminders(1,1,true)
-      const refreshCount = await initializeReminders(io);
+      removeDuplicateReminders(1, 1, true);
+      const refreshCount = await initializeReminders();
       logger.info(`Daily refresh: Initialized ${refreshCount} reminders`);
     });
 
     // Also refresh every hour to catch any missed reminders
     schedule.scheduleJob("0 * * * *", async () => {
-      const refreshCount = await initializeReminders(io);
+      const refreshCount = await initializeReminders();
       logger.info(`Hourly refresh: Initialized ${refreshCount} reminders`);
     });
 
     // Start the server
     const PORT = process.env.PORT || 3000;
-    server.listen(PORT, () => {
+    app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`);
     });
   } catch (error) {
@@ -156,12 +122,12 @@ const initializeApp = async () => {
   }
 };
 
-// Start the application
-initializeApp();
-
 // Handle unhandled promise rejections
-process.on("unhandledRejection", (err) => {
+process.on("unhandledRejection", (err, promise) => {
   logger.error(`Error: ${err.message}`);
   // Close server & exit process
-  server.close(() => process.exit(1));
+  process.exit(1);
 });
+
+// Initialize the application
+initializeApp();

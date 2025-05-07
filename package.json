@@ -21,6 +21,10 @@
     "cors": "^2.8.5",
     "dotenv": "^10.0.0",
     "express": "^4.17.1",
+    "express-rate-limit": "^7.5.0",
+    "firebase-admin": "^13.3.0",
+    "helmet": "^8.1.0",
+    "hpp": "^0.2.3",
     "jsonwebtoken": "^8.5.1",
     "moment-timezone": "^0.5.34",
     "mongoose": "^6.0.12",
@@ -30,7 +34,8 @@
     "redis": "^4.6.10",
     "socket.io": "^4.3.1",
     "twilio": "^4.22.0",
-    "winston": "^3.8.2"
+    "winston": "^3.8.2",
+    "xss-clean": "^0.1.4"
   },
   "devDependencies": {
     "nodemon": "^2.0.14"

@@ -2,6 +2,7 @@ const nodemailer = require("nodemailer");
 // const { Twilio } = require("twilio");
 require("dotenv").config();
 const logger = require("./logger");
+const { sendFCMNotification } = require("./firebase");
 
 // Configure email transporter
 const transporter = nodemailer.createTransport({
@@ -54,17 +55,18 @@ exports.sendEmailNotification = async (email, subject, text, html) => {
 };
 
 /**
- * Send push notification via Socket.io
- * @param {object} io - Socket.io instance
- * @param {string} userId - User ID for the room
+ * Send push notification via FCM
+ * @param {string} fcmToken - User's FCM token
  * @param {object} data - Notification data
- * @returns {boolean} - Success status
+ * @returns {Promise<boolean>} - Success status
  */
-exports.sendPushNotification = (io, userId, data) => {
+exports.sendPushNotification = async (fcmToken, data) => {
   try {
-    io.to(userId).emit("notification", data);
-    logger.info(`Push notification send!`);
-    return true;
+    const success = await sendFCMNotification(fcmToken, data);
+    if (success) {
+      logger.info(`Push notification sent successfully`);
+    }
+    return success;
   } catch (error) {
     logger.error(`Push notification error: ${error.message}`);
     return false;
