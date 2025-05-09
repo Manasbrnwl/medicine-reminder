@@ -35,6 +35,10 @@ const UserSchema = new mongoose.Schema(
       enum: ["user", "admin"],
       default: "user"
     },
+    jwtToken: {
+      type: String,
+      default: null
+    },
     // FCM token for push notifications
     fcmToken: {
       type: String,

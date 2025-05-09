@@ -34,6 +34,10 @@ exports.registerUser = async (req, res) => {
       notificationPreferences: notificationPreferences || undefined
     });
 
+    const token = generateToken(user._id);
+    user.jwtToken = token;
+    user.save();
+
     if (user) {
       res.status(201).json({
         success: true,
@@ -44,7 +48,7 @@ exports.registerUser = async (req, res) => {
           phone: user.phone,
           role: user.role,
           notificationPreferences: user.notificationPreferences,
-          token: generateToken(user._id)
+          token
         }
       });
     } else {
@@ -89,6 +93,10 @@ exports.loginUser = async (req, res) => {
       });
     }
 
+    const token = generateToken(user._id);
+    user.jwtToken = token;
+    user.save();
+
     res.json({
       success: true,
       data: {
@@ -105,7 +113,7 @@ exports.loginUser = async (req, res) => {
           phone: data.phone
         })),
         notificationPreferences: user.notificationPreferences,
-        token: generateToken(user._id)
+        token
       }
     });
   } catch (error) {
@@ -467,4 +475,15 @@ exports.updateFCMToken = async (req, res) => {
       error: process.env.NODE_ENV === "development" ? error.message : undefined
     });
   }
+};
+
+exports.logoutUser = async (req, res) => {
+  const user = await User.findById(req.userId);
+  if (!user) return res.status(404).json({ message: "User not found" });
+
+  user.token = null;
+  user.fcmToken = null;
+  await user.save();
+
+  res.json({ message: "Logout successful" });
 };

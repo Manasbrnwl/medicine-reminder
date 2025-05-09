@@ -9,7 +9,8 @@ const {
   getDependents,
   verifyOTPAndLogin,
   requestOTP,
-  updateFCMToken
+  updateFCMToken,
+  logoutUser
 } = require("../controllers/userController");
 const { protect } = require("../middleware/auth");
 
@@ -20,6 +21,7 @@ router.post("/", registerUser);
 router.post("/login", loginUser);
 router.post("/request-otp", requestOTP);
 router.post("/verify-otp", verifyOTPAndLogin);
+router.post("/logout", protect, logoutUser);
 
 // Protected routes
 router.get("/profile", protect, getUserProfile);
