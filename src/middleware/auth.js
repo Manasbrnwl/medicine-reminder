@@ -27,7 +27,7 @@ exports.protect = async (req, res, next) => {
 
     req.user = await User.findById(decoded.id);
 
-    if (token || req.user.jwtToken != token) {
+    if (!token || req.user.jwtToken != token) {
       return res.status(401).json({
         success: false,
         message: "Not authorized to access this route"

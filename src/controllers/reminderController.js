@@ -934,8 +934,8 @@ exports.getRemindersWithMedicineDetails = async (req, res) => {
     const { status, date } = req.query;
 
     const today = new Date(date);
-    const startOfDay = new Date(today.setHours(5, 30, 0, 0));
-    const endOfDay = new Date(today.setHours(29, 29, 59, 999));
+    const startOfDay = new Date(today.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(today.setHours(23, 59, 59, 999));
 
     // Execute query
     const reminders = await Reminder.find({

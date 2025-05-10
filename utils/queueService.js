@@ -162,7 +162,7 @@ missedDoseQueue.process(async (job) => {
       }
 
       logger.info(
-        `Reminder ${reminderId} automatically marked as missed after 30 seconds of inactivity`
+        `Reminder ${reminderId} automatically marked as missed after 5 minutes of inactivity`
       );
     }
 
