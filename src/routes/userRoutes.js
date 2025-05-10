@@ -10,7 +10,8 @@ const {
   verifyOTPAndLogin,
   requestOTP,
   updateFCMToken,
-  logoutUser
+  logoutUser,
+  loginGoogleUser
 } = require("../controllers/userController");
 const { protect } = require("../middleware/auth");
 
@@ -19,9 +20,10 @@ const router = express.Router();
 // Public routes
 router.post("/", registerUser);
 router.post("/login", loginUser);
+router.post("/login/google", loginGoogleUser);
 router.post("/request-otp", requestOTP);
 router.post("/verify-otp", verifyOTPAndLogin);
-router.post("/logout", protect, logoutUser);
+router.get("/logout", protect, logoutUser);
 
 // Protected routes
 router.get("/profile", protect, getUserProfile);

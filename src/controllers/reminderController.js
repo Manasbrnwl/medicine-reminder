@@ -365,6 +365,22 @@ exports.markMedicineAsTaken = async (req, res) => {
         message: "Reminder is missed"
       });
     }
+    if (reminder.time < addISTOffset(new Date())) {
+      reminder.status = "missed";
+      await reminder.save();
+      return res.status(400).json({
+        success: false,
+        message: "Reminder is missed"
+      });
+    }
+
+    if (new Date(reminder.time.getTime() - 5 * 60000) > addISTOffset(new Date())) {
+      return res.status(400).json({
+        success: false,
+        message: "Reminder is not yet due"
+      });
+    }
+
     reminder.status = "taken";
     await reminder.save();
 

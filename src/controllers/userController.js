@@ -1,6 +1,7 @@
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 const { generateAndSaveOTP, verifyOTP } = require("../../utils/otp");
+const { getFirebaseAdmin } = require("../../utils/firebase");
 
 // Generate JWT token
 const generateToken = (id) => {
@@ -477,6 +478,9 @@ exports.updateFCMToken = async (req, res) => {
   }
 };
 
+// @desc    Logout user
+// @route   PUT /api/users/logout
+// @access  Private
 exports.logoutUser = async (req, res) => {
   const user = await User.findById(req.userId);
   if (!user) return res.status(404).json({ message: "User not found" });
@@ -486,4 +490,51 @@ exports.logoutUser = async (req, res) => {
   await user.save();
 
   res.json({ message: "Logout successful" });
+};
+
+exports.loginGoogleUser = async (req, res) => {
+  try {
+    const { fcmToken, idToken } = req.body;
+    if (!idToken || !fcmToken) {
+      return res.status(400).json({
+        success: false,
+        message: "Google ID token and FCM token are required"
+      });
+    }
+    const decodedToken = await getFirebaseAdmin.auth().verifyIdToken(idToken);
+    const { uid, email, name } = decodedToken;
+
+    let user = await User.findOne({ _id: uid });
+    if (!user) {
+      user = await User.create({ _id: uid, name, email });
+    }
+    const token = generateToken(user._id);
+    user.jwtToken = token;
+    user.save();
+    res.json({
+      success: true,
+      data: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        parent: user.parent,
+        dependents: user.dependents.map((data) => ({
+          _id: data._id,
+          name: data.name,
+          email: data.email,
+          phone: data.phone
+        })),
+        notificationPreferences: user.notificationPreferences,
+        token
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined
+    });
+  }
 };
