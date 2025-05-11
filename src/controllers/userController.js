@@ -482,7 +482,7 @@ exports.updateFCMToken = async (req, res) => {
 // @route   PUT /api/users/logout
 // @access  Private
 exports.logoutUser = async (req, res) => {
-  const user = await User.findById(req.userId);
+  const user = await User.findById(req.user.id);
   if (!user) return res.status(404).json({ message: "User not found" });
 
   user.token = null;
