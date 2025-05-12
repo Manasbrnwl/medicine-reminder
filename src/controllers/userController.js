@@ -142,8 +142,8 @@ exports.getUserProfile = async (req, res) => {
         data: {
           _id: user._id,
           name: user.name,
-          email: user.email,
-          phone: user.phone,
+          email: user.email || '',
+          phone: user.phone || '',
           role: user.role,
           parent: user.parent,
           dependents: user.dependents,
@@ -527,7 +527,7 @@ exports.loginGoogleUser = async (req, res) => {
         _id: user._id,
         name: user.name,
         email: user.email,
-        phone: user.phone,
+        phone: user.phone || '',
         role: user.role,
         parent: user.parent,
         dependents: user.dependents.map((data) => ({
