@@ -27,44 +27,33 @@ const redisConfig = {
 };
 
 // Create queues for different types of jobs
-let reminderQueue, missedDoseQueue, recurringReminderQueue;
-
-// Global socket.io instance
-let globalIo = null;
-
-// Set the global socket.io instance
-const setSocketIo = (io) => {
-  globalIo = io;
-  logger.info("Socket.IO instance set globally");
-};
+// let reminderQueue, missedDoseQueue, recurringReminderQueue;
+let reminderQueue, missedDoseQueue;
 
 // Initialize queues
 const initializeQueues = () => {
   try {
-    logger.info("Initializing Bull queues...");
-
     reminderQueue = new Bull("medication-reminders", redisConfig);
     missedDoseQueue = new Bull("missed-dose-checks", redisConfig);
-    recurringReminderQueue = new Bull("recurring-reminders", redisConfig);
+    // recurringReminderQueue = new Bull("recurring-reminders", redisConfig);
 
     // Add error handlers for each queue
-    [reminderQueue, missedDoseQueue, recurringReminderQueue].forEach(
-      (queue) => {
-        queue.on("error", (error) => {
-          logger.error(`Queue ${queue.name} error: ${error.message}`);
-        });
+    // [reminderQueue, missedDoseQueue, recurringReminderQueue].forEach(
+    [reminderQueue, missedDoseQueue].forEach((queue) => {
+      queue.on("error", (error) => {
+        logger.error(`Queue ${queue.name} error: ${error.message}`);
+      });
 
-        queue.on("failed", (job, error) => {
-          logger.error(
-            `Job ${job.id} in queue ${queue.name} failed: ${error.message}`
-          );
-        });
+      queue.on("failed", (job, error) => {
+        logger.error(
+          `Job ${job.id} in queue ${queue.name} failed: ${error.message}`
+        );
+      });
 
-        queue.on("stalled", (job) => {
-          logger.warn(`Job ${job.id} in queue ${queue.name} has stalled`);
-        });
-      }
-    );
+      queue.on("stalled", (job) => {
+        logger.warn(`Job ${job.id} in queue ${queue.name} has stalled`);
+      });
+    });
 
     logger.info("Bull queues initialized successfully");
     return true;
@@ -174,34 +163,34 @@ missedDoseQueue.process(async (job) => {
 });
 
 // Process recurring reminder creation
-recurringReminderQueue.process(async (job) => {
-  try {
-    const { reminderId } = job.data;
-    logger.info(`Creating next occurrence for reminder: ${reminderId}`);
+// recurringReminderQueue.process(async (job) => {
+//   try {
+//     const { reminderId } = job.data;
+//     logger.info(`Creating next occurrence for reminder: ${reminderId}`);
 
-    // Fetch the original reminder
-    const reminder = await Reminder.findById(reminderId)
-      .populate({
-        path: "medicine",
-        select: "name id category dosage instructions"
-      })
-      .populate("user");
+//     // Fetch the original reminder
+//     const reminder = await Reminder.findById(reminderId)
+//       .populate({
+//         path: "medicine",
+//         select: "name id category dosage instructions"
+//       })
+//       .populate("user");
 
-    if (!reminder) {
-      logger.warn(
-        `Reminder ${reminderId} not found, cannot create next occurrence`
-      );
-      return { success: false, reason: "reminder_not_found" };
-    }
+//     if (!reminder) {
+//       logger.warn(
+//         `Reminder ${reminderId} not found, cannot create next occurrence`
+//       );
+//       return { success: false, reason: "reminder_not_found" };
+//     }
 
-    // Create next occurrence based on reminder pattern
-    const result = await createNextOccurrence(reminder);
-    return { success: true, nextReminderId: result?.reminderId };
-  } catch (error) {
-    logger.error(`Error creating recurring reminder: ${error.message}`);
-    return { success: false, error: error.message };
-  }
-});
+//     // Create next occurrence based on reminder pattern
+//     const result = await createNextOccurrence(reminder);
+//     return { success: true, nextReminderId: result?.reminderId };
+//   } catch (error) {
+//     logger.error(`Error creating recurring reminder: ${error.message}`);
+//     return { success: false, error: error.message };
+//   }
+// });
 
 // Send notifications for a reminder via all enabled channels
 async function sendNotifications(reminder) {
@@ -411,10 +400,10 @@ async function scheduleNextRecurrence(reminder) {
 
     // Stop if next time is after schedule end date
     if (reminder.scheduleEnd && nextTime > new Date(reminder.scheduleEnd)) {
-      await Reminder.findByIdAndUpdate(reminder._id, {
-        status: "missed",
-        missedAt: new Date()
-      });
+      // await Reminder.findByIdAndUpdate(reminder._id, {
+      //   status: "missed",
+      //   missedAt: new Date()
+      // });
       logger.info(
         `Reminder ${reminder._id} has reached its end date, no more occurrences`
       );
@@ -456,54 +445,54 @@ async function scheduleNextRecurrence(reminder) {
 }
 
 // Create next reminder occurrence
-async function createNextOccurrence(reminder) {
-  try {
-    // Calculate next time based on frequency and repeat pattern
-    const nextTime = calculateNextTime(reminder);
+// async function createNextOccurrence(reminder) {
+//   try {
+//     // Calculate next time based on frequency and repeat pattern
+//     const nextTime = calculateNextTime(reminder);
 
-    // Stop if next time is after schedule end date
-    if (reminder.scheduleEnd && nextTime > new Date(reminder.scheduleEnd)) {
-      await Reminder.findByIdAndUpdate(reminder._id, {
-        status: "missed",
-        missedAt: new Date()
-      });
-      logger.info(
-        `Reminder ${reminder._id} has reached its end date, no more occurrences`
-      );
-      return null;
-    }
+//     // Stop if next time is after schedule end date
+//     if (reminder.scheduleEnd && nextTime > new Date(reminder.scheduleEnd)) {
+//       // await Reminder.findByIdAndUpdate(reminder._id, {
+//       //   status: "missed",
+//       //   missedAt: new Date()
+//       // });
+//       logger.info(
+//         `Reminder ${reminder._id} has reached its end date, no more occurrences`
+//       );
+//       return null;
+//     }
 
-    const newReminder = new Reminder({
-      medicine: reminder.medicine.id,
-      user: reminder.user._id,
-      scheduleStart: reminder.scheduleStart,
-      scheduleEnd: reminder.scheduleEnd,
-      frequency: reminder.frequency,
-      time: nextTime,
-      repeat: reminder.repeat,
-      daysOfWeek: reminder.daysOfWeek,
-      daysOfMonth: reminder.daysOfMonth,
-      repeatInterval: reminder.repeatInterval,
-      repeatUnit: reminder.repeatUnit,
-      active: true
-    });
-    // Save the new reminder
-    const savedReminder = await newReminder.save();
+//     const newReminder = new Reminder({
+//       medicine: reminder.medicine.id,
+//       user: reminder.user._id,
+//       scheduleStart: reminder.scheduleStart,
+//       scheduleEnd: reminder.scheduleEnd,
+//       frequency: reminder.frequency,
+//       time: nextTime,
+//       repeat: reminder.repeat,
+//       daysOfWeek: reminder.daysOfWeek,
+//       daysOfMonth: reminder.daysOfMonth,
+//       repeatInterval: reminder.repeatInterval,
+//       repeatUnit: reminder.repeatUnit,
+//       active: true
+//     });
+//     // Save the new reminder
+//     const savedReminder = await newReminder.save();
 
-    // Schedule the notification
-    await scheduleReminder(savedReminder._id, nextTime);
+//     // Schedule the notification
+//     await scheduleReminder(savedReminder._id, nextTime);
 
-    logger.info(
-      `Created and scheduled next occurrence for reminder ${
-        reminder._id
-      } at ${nextTime.toISOString()}`
-    );
-    return { success: true, reminderId: savedReminder._id };
-  } catch (error) {
-    logger.error(`Error creating next occurrence: ${error.message}`);
-    return null;
-  }
-}
+//     logger.info(
+//       `Created and scheduled next occurrence for reminder ${
+//         reminder._id
+//       } at ${nextTime.toISOString()}`
+//     );
+//     return { success: true, reminderId: savedReminder._id };
+//   } catch (error) {
+//     logger.error(`Error creating next occurrence: ${error.message}`);
+//     return null;
+//   }
+// }
 
 /**
  * Calculate next time for recurring reminder
@@ -757,7 +746,7 @@ async function cleanupQueues() {
   try {
     await reminderQueue.empty();
     await missedDoseQueue.empty();
-    await recurringReminderQueue.empty();
+    // await recurringReminderQueue.empty();
     logger.info("All queues emptied successfully");
     return true;
   } catch (error) {
@@ -771,7 +760,7 @@ async function pauseQueues() {
   try {
     await reminderQueue.pause();
     await missedDoseQueue.pause();
-    await recurringReminderQueue.pause();
+    // await recurringReminderQueue.pause();
     logger.info("All queues paused");
     return true;
   } catch (error) {
@@ -785,7 +774,7 @@ async function resumeQueues() {
   try {
     await reminderQueue.resume();
     await missedDoseQueue.resume();
-    await recurringReminderQueue.resume();
+    // await recurringReminderQueue.resume();
     logger.info("All queues resumed");
     return true;
   } catch (error) {
@@ -799,14 +788,14 @@ async function getQueuesStatus() {
   try {
     const [reminderCount, missedDoseCount, recurringCount] = await Promise.all([
       reminderQueue.getJobCounts(),
-      missedDoseQueue.getJobCounts(),
-      recurringReminderQueue.getJobCounts()
+      missedDoseQueue.getJobCounts()
+      // recurringReminderQueue.getJobCounts()
     ]);
 
     return {
       reminderQueue: reminderCount,
-      missedDoseQueue: missedDoseCount,
-      recurringReminderQueue: recurringCount
+      missedDoseQueue: missedDoseCount
+      // recurringReminderQueue: recurringCount
     };
   } catch (error) {
     logger.error(`Error getting queue status: ${error.message}`);
@@ -933,7 +922,7 @@ const snoozeReminder = async (reminderId, snoozedUntil) => {
 module.exports = {
   reminderQueue,
   missedDoseQueue,
-  recurringReminderQueue,
+  // recurringReminderQueue,
   scheduleReminder,
   scheduleRemindersInRange,
   scheduleUserReminders,

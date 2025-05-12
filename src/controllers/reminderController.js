@@ -150,7 +150,8 @@ exports.createReminder = async (req, res) => {
             medicine: is_medicine.length > 0 ? is_medicine[0].id : medicine.id,
             user: req.user.id,
             scheduleStart: scheduleStart || new Date(),
-            scheduleEnd: scheduleEnd || null,
+            scheduleEnd:
+              new Date(new Date(scheduleEnd).setHours(23, 59, 59, 999)) || null,
             frequency,
             time: new Date(time),
             repeat: repeat || "none",
@@ -172,7 +173,8 @@ exports.createReminder = async (req, res) => {
         medicine: is_medicine.length > 0 ? is_medicine[0].id : medicine.id,
         user: req.user.id,
         scheduleStart: scheduleStart || new Date(),
-        scheduleEnd: scheduleEnd || null,
+        scheduleEnd:
+          new Date(new Date(scheduleEnd).setHours(23, 59, 59, 999)) || null,
         frequency,
         time: addISTOffset(new Date()),
         repeat: repeat || "none",
@@ -185,9 +187,8 @@ exports.createReminder = async (req, res) => {
       scheduleReminder(reminderData._id, new Date(reminderData.time), 1);
     }
     scheduleRemindersInRange(
-      addISTOffset(new Date()),
-      addISTOffset(new Date(customTimes[customTimes.length - 1])),
-      global.io,
+      new Date(),
+      new Date(customTimes[customTimes.length - 1]),
       req.user.id
     );
 
@@ -374,7 +375,9 @@ exports.markMedicineAsTaken = async (req, res) => {
       });
     }
 
-    if (new Date(reminder.time.getTime() - 5 * 60000) > addISTOffset(new Date())) {
+    if (
+      new Date(reminder.time.getTime() - 5 * 60000) > addISTOffset(new Date())
+    ) {
       return res.status(400).json({
         success: false,
         message: "Reminder is not yet due"

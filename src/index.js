@@ -110,6 +110,11 @@ const initializeApp = async () => {
       logger.info(`Hourly refresh: Initialized ${refreshCount} reminders`);
     });
 
+    // Also refresh every 5 minutes to catch any missed reminders
+    schedule.scheduleJob("0 */5 * * *", async () => {
+      removeDuplicateReminders(1, 1, true);
+    });
+
     // Start the server
     const PORT = process.env.PORT || 3000;
     app.listen(PORT, () => {
