@@ -233,10 +233,11 @@ function formatNotification(reminder) {
   try {
     // Extract medicine names
     const medicineNames = reminder.medicine?.name;
+    const medicineInstructions = reminder.medicine?.instructions;
 
     return {
       title: `Medicine Reminder`,
-      body: `It's time to take - ${medicineNames}`,
+      body: `It's time to take - ${medicineNames} : ${medicineInstructions}`,
       reminderId: reminder._id.toString()
     };
   } catch (error) {

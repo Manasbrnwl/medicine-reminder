@@ -147,6 +147,10 @@ exports.getUserProfile = async (req, res) => {
           role: user.role,
           parent: user.parent,
           dependents: user.dependents,
+          subscription: {
+            status: user.subscription.status,
+            end: user.subscription.endDate
+          },
           notificationPreferences: user.notificationPreferences,
           createdAt: user.createdAt
         }
@@ -501,12 +505,13 @@ exports.loginGoogleUser = async (req, res) => {
         message: "Google ID token and FCM token are required"
       });
     }
-    const decodedToken = await getFirebaseAdmin.auth().verifyIdToken(idToken);
-    const { uid, email, name } = decodedToken;
+    const admin = getFirebaseAdmin();
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const { user_id, email, name } = decodedToken;
 
-    let user = await User.findOne({ _id: uid });
+    let user = await User.findOne({ firebaseUid: user_id });
     if (!user) {
-      user = await User.create({ _id: uid, name, email });
+      user = await User.create({ firebaseUid: user_id, name, email });
     }
     const token = generateToken(user._id);
     user.jwtToken = token;
@@ -518,6 +523,7 @@ exports.loginGoogleUser = async (req, res) => {
         name: user.name,
         email: user.email,
         phone: user.phone,
+        password: 'Health@123$%MVP321%$',
         role: user.role,
         parent: user.parent,
         dependents: user.dependents.map((data) => ({

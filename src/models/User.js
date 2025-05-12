@@ -4,6 +4,11 @@ const { addHoursToDate } = require("../default/common");
 
 const UserSchema = new mongoose.Schema(
   {
+    firebaseUid: {
+      type: String,
+      unique: true,
+      sparse: true
+    },
     name: {
       type: String,
       required: [true, "Please add a name"]
