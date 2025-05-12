@@ -511,7 +511,12 @@ exports.loginGoogleUser = async (req, res) => {
 
     let user = await User.findOne({ firebaseUid: user_id });
     if (!user) {
-      user = await User.create({ firebaseUid: user_id, name, email });
+      user = await User.create({
+        firebaseUid: user_id,
+        name,
+        email,
+        password: "Health@123$%MVP321%$"
+      });
     }
     const token = generateToken(user._id);
     user.jwtToken = token;
@@ -523,7 +528,6 @@ exports.loginGoogleUser = async (req, res) => {
         name: user.name,
         email: user.email,
         phone: user.phone,
-        password: 'Health@123$%MVP321%$',
         role: user.role,
         parent: user.parent,
         dependents: user.dependents.map((data) => ({
