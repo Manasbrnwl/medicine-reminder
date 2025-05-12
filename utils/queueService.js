@@ -931,7 +931,6 @@ module.exports = {
   pauseQueues,
   resumeQueues,
   getQueuesStatus,
-  setSocketIo,
   initializeQueues,
   cancelReminder,
   snoozeReminder,
