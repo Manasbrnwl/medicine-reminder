@@ -186,11 +186,6 @@ exports.createReminder = async (req, res) => {
       });
       scheduleReminder(reminderData._id, new Date(reminderData.time), 1);
     }
-    scheduleRemindersInRange(
-      new Date(),
-      new Date(customTimes[customTimes.length - 1]),
-      req.user.id
-    );
 
     res.status(201).json({
       success: true,
