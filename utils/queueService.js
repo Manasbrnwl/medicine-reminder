@@ -100,9 +100,9 @@ reminderQueue.process(async (job) => {
     await scheduleMissedDoseCheck(reminder);
 
     // Schedule next occurrence if it's a recurring reminder
-    if (reminder.repeat !== "none" && reminder.scheduleEnd) {
-      await scheduleNextRecurrence(reminder);
-    }
+    // if (reminder.repeat !== "none" && reminder.scheduleEnd) {
+    //   await scheduleNextRecurrence(reminder);
+    // }
 
     return { success: true };
   } catch (error) {
