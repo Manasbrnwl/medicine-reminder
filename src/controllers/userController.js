@@ -520,6 +520,7 @@ exports.loginGoogleUser = async (req, res) => {
     }
     const token = generateToken(user._id);
     user.jwtToken = token;
+    user.fcmToken = fcmToken;
     user.save();
     res.json({
       success: true,
