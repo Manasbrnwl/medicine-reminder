@@ -1,5 +1,6 @@
 const express = require("express");
 const {
+  getSubscriptionTypes,
   getSubscriptionStatus,
   upgradeSubscription,
   cancelSubscription
@@ -13,7 +14,7 @@ router.use(protect);
 // router.use(checkSubscription);
 
 // Subscription routes
-router.get("/subscription", checkSubscription);
+router.get("/", getSubscriptionTypes);
 router.get("/status", getSubscriptionStatus);
 router.post("/upgrade", upgradeSubscription);
 router.post("/cancel", cancelSubscription);
