@@ -10,9 +10,10 @@ const router = express.Router();
 
 // All routes are protected and require an active subscription
 router.use(protect);
-router.use(checkSubscription);
+// router.use(checkSubscription);
 
 // Subscription routes
+router.get("/subscription", checkSubscription);
 router.get("/status", getSubscriptionStatus);
 router.post("/upgrade", upgradeSubscription);
 router.post("/cancel", cancelSubscription);

@@ -63,7 +63,7 @@ const UserSchema = new mongoose.Schema(
       endDate: {
         type: Date,
         default: () => {
-          return addHoursToDate(24 * 30);
+          return addHoursToDate(24 * 15);
         }
       },
       autoRenew: {
