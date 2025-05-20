@@ -115,6 +115,9 @@ reminderQueue.process(async (job) => {
 missedDoseQueue.process(async (job) => {
   try {
     const { reminderId } = job.data;
+    logger.info(
+      `[MissedDoseCheck] Processing check for reminder ${reminderId} (Job ID: ${job.id})`
+    );
 
     // Reload reminder to get current status
     const reminder = await Reminder.findById(reminderId)
@@ -126,38 +129,57 @@ missedDoseQueue.process(async (job) => {
 
     if (!reminder) {
       logger.warn(
-        `Reminder ${reminderId} not found, skipping missed dose check`
+        `[MissedDoseCheck] Reminder ${reminderId} not found, skipping check`
       );
       return { success: false, reason: "reminder_not_found" };
     }
+
+    logger.info(
+      `[MissedDoseCheck] Current status of reminder ${reminderId}: ${reminder.status}`
+    );
 
     // Check if any medicines are still pending
     const hasPendingMedicines = reminder.status === "pending";
 
     if (hasPendingMedicines) {
       logger.info(
-        `Reminder ${reminderId} has pending medicines, marking as missed`
+        `[MissedDoseCheck] Reminder ${reminderId} has pending medicines, marking as missed`
       );
 
       // Mark reminder as missed
-      await Reminder.findByIdAndUpdate(reminderId, {
-        status: "missed",
-        missedAt: addISTOffset(new Date())
-      });
+      const updatedReminder = await Reminder.findByIdAndUpdate(
+        reminderId,
+        {
+          status: "missed",
+          missedAt: addISTOffset(new Date())
+        },
+        { new: true }
+      );
+
+      logger.info(
+        `[MissedDoseCheck] Reminder ${reminderId} marked as missed. New status: ${updatedReminder.status}`
+      );
 
       // Notify parent if exists and not already notified
       if (reminder.user?.parent && !reminder.parentNotified) {
         await notifyParent(reminder);
+        logger.info(
+          `[MissedDoseCheck] Parent notified for reminder ${reminderId}`
+        );
       }
 
       logger.info(
-        `Reminder ${reminderId} automatically marked as missed after 5 minutes of inactivity`
+        `[MissedDoseCheck] Reminder ${reminderId} automatically marked as missed after 5 minutes of inactivity`
+      );
+    } else {
+      logger.info(
+        `[MissedDoseCheck] Reminder ${reminderId} is no longer pending (status: ${reminder.status}), skipping missed mark`
       );
     }
 
     return { success: true };
   } catch (error) {
-    logger.error(`Error processing missed dose check: ${error.message}`);
+    logger.error(`[MissedDoseCheck] Error processing check: ${error.message}`);
     return { success: false, error: error.message };
   }
 });
@@ -261,20 +283,29 @@ async function scheduleMissedDoseCheck(reminder) {
     const now = addISTOffset(new Date());
     const nowPlusBuffer = new Date(now.getTime() + 10 * 1000); // Add 10 seconds buffer
 
+    logger.info(
+      `[MissedDoseCheck] Starting check for reminder ${reminder._id}`
+    );
+    logger.info(
+      `[MissedDoseCheck] Reminder time: ${reminderTime.toISOString()}`
+    );
+    logger.info(`[MissedDoseCheck] Check time: ${checkTime.toISOString()}`);
+    logger.info(`[MissedDoseCheck] Current time: ${now.toISOString()}`);
+
     if (checkTime <= nowPlusBuffer) {
       // If check time is too close or in the past, schedule for 5 minutes from now
       const adjustedCheckTime = new Date(now.getTime() + 5 * 60 * 1000);
       logger.info(
-        `Missed dose check time for reminder ${
+        `[MissedDoseCheck] Check time adjusted for reminder ${
           reminder._id
-        } adjusted to ${adjustedCheckTime.toISOString()}`
+        } to ${adjustedCheckTime.toISOString()}`
       );
 
       // Calculate delay in milliseconds (5 minutes)
       const delay = 5 * 60 * 1000;
 
       // Add to missed dose queue with delay
-      await missedDoseQueue.add(
+      const job = await missedDoseQueue.add(
         {
           reminderId: reminder._id.toString()
         },
@@ -290,7 +321,7 @@ async function scheduleMissedDoseCheck(reminder) {
       );
 
       logger.info(
-        `Scheduled missed dose check for reminder ${reminder._id} in 5 minutes from now`
+        `[MissedDoseCheck] Scheduled immediate check for reminder ${reminder._id} with job ID ${job.id}`
       );
       return true;
     }
@@ -299,7 +330,7 @@ async function scheduleMissedDoseCheck(reminder) {
     const delay = checkTime.getTime() - now.getTime();
 
     // Add to missed dose queue with delay
-    await missedDoseQueue.add(
+    const job = await missedDoseQueue.add(
       {
         reminderId: reminder._id.toString()
       },
@@ -315,15 +346,15 @@ async function scheduleMissedDoseCheck(reminder) {
     );
 
     logger.info(
-      `Scheduled missed dose check for reminder ${
+      `[MissedDoseCheck] Scheduled check for reminder ${
         reminder._id
       } at ${checkTime.toISOString()} (in ${Math.round(
         delay / 60 / 1000
-      )} minutes)`
+      )} minutes) with job ID ${job.id}`
     );
     return true;
   } catch (error) {
-    logger.error(`Error scheduling missed dose check: ${error.message}`);
+    logger.error(`[MissedDoseCheck] Error scheduling check: ${error.message}`);
     return false;
   }
 }
