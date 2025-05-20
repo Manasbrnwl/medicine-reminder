@@ -100,9 +100,9 @@ reminderQueue.process(async (job) => {
     await scheduleMissedDoseCheck(reminder);
 
     // Schedule next occurrence if it's a recurring reminder
-    // if (reminder.repeat !== "none" && reminder.scheduleEnd) {
-    //   await scheduleNextRecurrence(reminder);
-    // }
+    if (reminder.repeat !== "none" && reminder.scheduleEnd) {
+      await scheduleNextRecurrence(reminder);
+    }
 
     return { success: true };
   } catch (error) {
@@ -134,18 +134,12 @@ missedDoseQueue.process(async (job) => {
       return { success: false, reason: "reminder_not_found" };
     }
 
-    logger.info(
-      `[MissedDoseCheck] Current status of reminder ${reminderId}: ${reminder.status}`
-    );
-
     // Check if any medicines are still pending
     const hasPendingMedicines = reminder.status === "pending";
-
-    if (hasPendingMedicines) {
-      logger.info(
-        `[MissedDoseCheck] Reminder ${reminderId} has pending medicines, marking as missed`
-      );
-
+    if (
+      hasPendingMedicines &&
+      addISTOffset(new Date()) > new Date(reminder.time)
+    ) {
       // Mark reminder as missed
       const updatedReminder = await Reminder.findByIdAndUpdate(
         reminderId,
@@ -156,21 +150,25 @@ missedDoseQueue.process(async (job) => {
         { new: true }
       );
 
-      logger.info(
-        `[MissedDoseCheck] Reminder ${reminderId} marked as missed. New status: ${updatedReminder.status}`
-      );
+      const notification = {
+        title: "Missed Dose Alert",
+        body: `You have automatically missed your dose of ${reminder.medicine?.name}`,
+        data: {
+          reminderId: reminder._id.toString(),
+          type: "missed_dose"
+        }
+      };
+
+      // Send push notification to user
+      if (reminder.user.fcmToken) {
+        await sendPushNotification(reminder.user.fcmToken, notification);
+        logger.info(`Push notification sent to user ${reminder.user._id}`);
+      }
 
       // Notify parent if exists and not already notified
       if (reminder.user?.parent && !reminder.parentNotified) {
         await notifyParent(reminder);
-        logger.info(
-          `[MissedDoseCheck] Parent notified for reminder ${reminderId}`
-        );
       }
-
-      logger.info(
-        `[MissedDoseCheck] Reminder ${reminderId} automatically marked as missed after 5 minutes of inactivity`
-      );
     } else {
       logger.info(
         `[MissedDoseCheck] Reminder ${reminderId} is no longer pending (status: ${reminder.status}), skipping missed mark`
@@ -283,15 +281,6 @@ async function scheduleMissedDoseCheck(reminder) {
     const now = addISTOffset(new Date());
     const nowPlusBuffer = new Date(now.getTime() + 10 * 1000); // Add 10 seconds buffer
 
-    logger.info(
-      `[MissedDoseCheck] Starting check for reminder ${reminder._id}`
-    );
-    logger.info(
-      `[MissedDoseCheck] Reminder time: ${reminderTime.toISOString()}`
-    );
-    logger.info(`[MissedDoseCheck] Check time: ${checkTime.toISOString()}`);
-    logger.info(`[MissedDoseCheck] Current time: ${now.toISOString()}`);
-
     if (checkTime <= nowPlusBuffer) {
       // If check time is too close or in the past, schedule for 5 minutes from now
       const adjustedCheckTime = new Date(now.getTime() + 5 * 60 * 1000);
@@ -371,15 +360,6 @@ async function notifyParent(reminder) {
     const isAutomatic = reminder.missedAt ? "automatically " : "";
     const medicineNames = reminder.medicine?.name;
 
-    const notification = {
-      title: "Missed Dose Alert",
-      body: `You have ${isAutomatic}missed your dose of ${medicineNames}`,
-      data: {
-        reminderId: reminder._id.toString(),
-        type: "missed_dose"
-      }
-    };
-
     const notificationToParent = {
       title: "Missed Dose Alert",
       body: `${reminder?.user?.name} has ${isAutomatic}missed their dose of ${medicineNames}`,
@@ -388,12 +368,6 @@ async function notifyParent(reminder) {
         type: "missed_dose"
       }
     };
-
-    // Send push notification to user
-    if (reminder.user.fcmToken) {
-      await sendPushNotification(reminder.user.fcmToken, notification);
-      logger.info(`Push notification sent to user ${reminder.user._id}`);
-    }
 
     // Send push notification to parent
     if (parent.notificationPreferences?.push && parent.fcmToken) {
