@@ -136,10 +136,7 @@ missedDoseQueue.process(async (job) => {
 
     // Check if any medicines are still pending
     const hasPendingMedicines = reminder.status === "pending";
-    if (
-      hasPendingMedicines &&
-      addISTOffset(new Date()) > new Date(reminder.time)
-    ) {
+    if (hasPendingMedicines) {
       // Mark reminder as missed
       const updatedReminder = await Reminder.findByIdAndUpdate(
         reminderId,

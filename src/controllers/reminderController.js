@@ -365,6 +365,7 @@ exports.markMedicineAsTaken = async (req, res) => {
       new Date(reminder.time.getTime() + 5 * 60000) < addISTOffset(new Date())
     ) {
       reminder.status = "missed";
+      reminder.missedAt = addISTOffset(new Date())
       await reminder.save();
       return res.status(400).json({
         success: false,
