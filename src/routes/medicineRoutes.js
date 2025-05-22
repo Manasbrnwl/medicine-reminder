@@ -3,7 +3,8 @@ const {
   getMedicines,
   getMedicine,
   deleteMedicine,
-  getDependentMedicines
+  getDependentMedicines,
+  updateMedicine
 } = require("../controllers/medicineController");
 const {
   protect,
@@ -27,6 +28,7 @@ router.get("/dependent/:dependentId", checkRelationship, getDependentMedicines);
 router
   .route("/:id")
   .get(getMedicine)
+  .put(updateMedicine)
   .delete(deleteMedicine);
 
 module.exports = router;

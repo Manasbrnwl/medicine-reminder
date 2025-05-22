@@ -27,19 +27,19 @@ const redisConfig = {
 };
 
 // Create queues for different types of jobs
-// let reminderQueue, missedDoseQueue, recurringReminderQueue;
-let reminderQueue, missedDoseQueue;
+let reminderQueue, missedDoseQueue, recurringReminderQueue;
+// let reminderQueue, missedDoseQueue;
 
 // Initialize queues
 const initializeQueues = () => {
   try {
     reminderQueue = new Bull("medication-reminders", redisConfig);
     missedDoseQueue = new Bull("missed-dose-checks", redisConfig);
-    // recurringReminderQueue = new Bull("recurring-reminders", redisConfig);
+    recurringReminderQueue = new Bull("recurring-reminders", redisConfig);
 
     // Add error handlers for each queue
-    // [reminderQueue, missedDoseQueue, recurringReminderQueue].forEach(
-    [reminderQueue, missedDoseQueue].forEach((queue) => {
+    [reminderQueue, missedDoseQueue, recurringReminderQueue].forEach((queue) => {
+    // [reminderQueue, missedDoseQueue].forEach((queue) => {
       queue.on("error", (error) => {
         logger.error(`Queue ${queue.name} error: ${error.message}`);
       });
@@ -100,9 +100,9 @@ reminderQueue.process(async (job) => {
     await scheduleMissedDoseCheck(reminder);
 
     // Schedule next occurrence if it's a recurring reminder
-    if (reminder.repeat !== "none" && reminder.scheduleEnd) {
-      await scheduleNextRecurrence(reminder);
-    }
+    // if (reminder.repeat !== "none" && reminder.scheduleEnd) {
+    //   await scheduleNextRecurrence(reminder);
+    // }
 
     return { success: true };
   } catch (error) {
@@ -180,34 +180,37 @@ missedDoseQueue.process(async (job) => {
 });
 
 // Process recurring reminder creation
-// recurringReminderQueue.process(async (job) => {
-//   try {
-//     const { reminderId } = job.data;
-//     logger.info(`Creating next occurrence for reminder: ${reminderId}`);
+recurringReminderQueue.process(async (job) => {
+  try {
+    const { reminderId } = job.data;
+    logger.info(`Creating next occurrence for reminder: ${reminderId}`);
 
-//     // Fetch the original reminder
-//     const reminder = await Reminder.findById(reminderId)
-//       .populate({
-//         path: "medicine",
-//         select: "name id category dosage instructions"
-//       })
-//       .populate("user");
+    // Fetch the original reminder
+    const reminder = await Reminder.findById(reminderId)
+      .populate({
+        path: "medicine",
+        select: "name id category dosage instructions"
+      })
+      .populate("user");
 
-//     if (!reminder) {
-//       logger.warn(
-//         `Reminder ${reminderId} not found, cannot create next occurrence`
-//       );
-//       return { success: false, reason: "reminder_not_found" };
-//     }
+    if (!reminder) {
+      logger.warn(
+        `Reminder ${reminderId} not found, cannot create next occurrence`
+      );
+      return { success: false, reason: "reminder_not_found" };
+    }
 
-//     // Create next occurrence based on reminder pattern
-//     const result = await createNextOccurrence(reminder);
-//     return { success: true, nextReminderId: result?.reminderId };
-//   } catch (error) {
-//     logger.error(`Error creating recurring reminder: ${error.message}`);
-//     return { success: false, error: error.message };
-//   }
-// });
+    // Create next occurrence based on reminder pattern
+    // const result = await createNextOccurrence(reminder);
+    if (reminder.repeat !== "none" && reminder.scheduleEnd) {
+      await scheduleNextRecurrence(reminder);
+    }
+    return { success: true, nextReminderId: result?.reminderId };
+  } catch (error) {
+    logger.error(`Error creating recurring reminder: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+});
 
 // Send notifications for a reminder via all enabled channels
 async function sendNotifications(reminder) {
@@ -749,7 +752,7 @@ async function cleanupQueues() {
   try {
     await reminderQueue.empty();
     await missedDoseQueue.empty();
-    // await recurringReminderQueue.empty();
+    await recurringReminderQueue.empty();
     logger.info("All queues emptied successfully");
     return true;
   } catch (error) {
@@ -763,7 +766,7 @@ async function pauseQueues() {
   try {
     await reminderQueue.pause();
     await missedDoseQueue.pause();
-    // await recurringReminderQueue.pause();
+    await recurringReminderQueue.pause();
     logger.info("All queues paused");
     return true;
   } catch (error) {
@@ -777,7 +780,7 @@ async function resumeQueues() {
   try {
     await reminderQueue.resume();
     await missedDoseQueue.resume();
-    // await recurringReminderQueue.resume();
+    await recurringReminderQueue.resume();
     logger.info("All queues resumed");
     return true;
   } catch (error) {
@@ -791,14 +794,14 @@ async function getQueuesStatus() {
   try {
     const [reminderCount, missedDoseCount, recurringCount] = await Promise.all([
       reminderQueue.getJobCounts(),
-      missedDoseQueue.getJobCounts()
-      // recurringReminderQueue.getJobCounts()
+      missedDoseQueue.getJobCounts(),
+      recurringReminderQueue.getJobCounts()
     ]);
 
     return {
       reminderQueue: reminderCount,
-      missedDoseQueue: missedDoseCount
-      // recurringReminderQueue: recurringCount
+      missedDoseQueue: missedDoseCount,
+      recurringReminderQueue: recurringCount
     };
   } catch (error) {
     logger.error(`Error getting queue status: ${error.message}`);
@@ -925,7 +928,7 @@ const snoozeReminder = async (reminderId, snoozedUntil) => {
 module.exports = {
   reminderQueue,
   missedDoseQueue,
-  // recurringReminderQueue,
+  recurringReminderQueue,
   scheduleReminder,
   scheduleRemindersInRange,
   scheduleUserReminders,

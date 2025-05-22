@@ -96,6 +96,52 @@ exports.getMedicine = async (req, res) => {
   }
 };
 
+// @desc    Update a single medicine
+// @route   PUT /api/medicines/:id
+// @access  Private
+exports.updateMedicine = async (req, res) => {
+  try {
+    const { name, dosage, category, instruction } = req.body;
+
+    // Validate input
+    const medicine = await Medicine.findById(req.params.id);
+
+    if (!medicine) {
+      return res.status(404).json({
+        success: false,
+        message: "Medicine not found"
+      });
+    }
+
+    // Check if the medicine belongs to the user
+    if (medicine.user.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to access this medicine"
+      });
+    }
+
+    // Update the medicine
+    medicine.name = name || medicine.name;
+    medicine.dosage = dosage || medicine.dosage;
+    medicine.category = category || medicine.category;
+    medicine.instructions = instruction || medicine.instructions;
+
+    const updatedMedicine = await medicine.save();
+
+    res.json({
+      success: true,
+      data: updatedMedicine
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined
+    });
+  }
+};
+
 // @desc    Delete a medicine
 // @route   DELETE /api/medicines/:id
 // @access  Private
