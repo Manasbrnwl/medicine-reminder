@@ -162,8 +162,8 @@ exports.getSubscriptionTypes = async (req, res) => {
       {
         id: "2",
         name: "Premium",
-        price: 100,
-        discounted_price: 100,
+        price: 129,
+        discounted_price: 129,
         duration: "1 month",
         features: [
           "Access to all features",
@@ -175,9 +175,9 @@ exports.getSubscriptionTypes = async (req, res) => {
       {
         id: "3",
         name: "Premium",
-        price: 250,
-        discounted_price: 250,
-        duration: "3 months",
+        price: 749,
+        discounted_price: 749,
+        duration: "6 months",
         features: [
           "Access to all features",
           "Unlimited reminders",
@@ -188,8 +188,8 @@ exports.getSubscriptionTypes = async (req, res) => {
       {
         id: "4",
         name: "Premium",
-        price: 800,
-        discounted_price: 800,
+        price: 1299,
+        discounted_price: 1299,
         duration: "1 year",
         features: [
           "Access to all features",
@@ -204,19 +204,19 @@ exports.getSubscriptionTypes = async (req, res) => {
           if (subscriptionType.id === "2") {
             subscriptionType.discounted_price = Math.max(
               0,
-              subscriptionType.price - user.streakCount * 2
+              subscriptionType.price - user.streakCount * 0.5
             ); // Apply streak discount
           }
           if (subscriptionType.id === "3") {
             subscriptionType.discounted_price = Math.max(
               0,
-              subscriptionType.price - user.streakCount * 3
+              subscriptionType.price - user.streakCount * 0.5
             ); // Apply streak discount
           }
           if (subscriptionType.id === "4") {
             subscriptionType.discounted_price = Math.max(
               0,
-              subscriptionType.price - user.streakCount * 4
+              subscriptionType.price - user.streakCount * 0.5
             ); // Apply streak discount
           }
           return subscriptionType;

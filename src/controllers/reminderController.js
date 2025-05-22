@@ -540,8 +540,8 @@ exports.getDependentReminders = async (req, res) => {
     const { date } = req.query;
 
     const today = new Date(date);
-    const startOfDay = new Date(today.setHours(5, 30, 0, 0));
-    const endOfDay = new Date(today.setHours(29, 29, 59, 999));
+    const startOfDay = new Date(today.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(today.setHours(23, 59, 59, 999));
 
     // Execute query
     // Check if the current user is a parent of the dependent

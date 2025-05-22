@@ -101,7 +101,7 @@ exports.getMedicine = async (req, res) => {
 // @access  Private
 exports.updateMedicine = async (req, res) => {
   try {
-    const { name, dosage, category, instruction } = req.body;
+    const { name, dosage, category } = req.body;
 
     // Validate input
     const medicine = await Medicine.findById(req.params.id);
@@ -125,7 +125,6 @@ exports.updateMedicine = async (req, res) => {
     medicine.name = name || medicine.name;
     medicine.dosage = dosage || medicine.dosage;
     medicine.category = category || medicine.category;
-    medicine.instructions = instruction || medicine.instructions;
 
     const updatedMedicine = await medicine.save();
 
