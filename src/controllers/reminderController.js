@@ -6,7 +6,8 @@ const {
   cancelReminder,
   snoozeReminder: queueSnoozeReminder,
   scheduleUserReminders,
-  scheduleRemindersInRange
+  scheduleRemindersInRange,
+  scheduleNextRecurrence
 } = require("../../utils/queueService");
 
 const { addISTOffset } = require("../default/common");
@@ -384,6 +385,11 @@ exports.markMedicineAsTaken = async (req, res) => {
 
     reminder.status = "taken";
     await reminder.save();
+
+    // Schedule next occurrence if it's a recurring reminder
+    if (reminder.repeat !== "none" && reminder.scheduleEnd) {
+      await scheduleNextRecurrence(reminder);
+    }
 
     res.json({
       success: true,
