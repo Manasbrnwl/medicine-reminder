@@ -6,6 +6,18 @@ const ReminderSchema = new mongoose.Schema({
     ref: "Medicine",
     required: true
   },
+  dosage: {
+    type: String,
+    required: [true, "Please add dosage information"]
+  },
+  instructions: {
+    type: String,
+    trim: true
+  },
+  category: {
+    type: String,
+    required: true
+  },
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",

@@ -149,6 +149,9 @@ exports.createReminder = async (req, res) => {
         customTimes.map(async (time) => {
           let reminderData = await Reminder.create({
             medicine: is_medicine.length > 0 ? is_medicine[0].id : medicine.id,
+            dosage: medicine_dosage,
+            instructions: medicine_instructions,
+            category: medicine_category,
             user: req.user.id,
             scheduleStart: scheduleStart || new Date(),
             scheduleEnd:
@@ -172,6 +175,9 @@ exports.createReminder = async (req, res) => {
     } else {
       let reminderData = await Reminder.create({
         medicine: is_medicine.length > 0 ? is_medicine[0].id : medicine.id,
+        dosage: medicine_dosage,
+        instructions: medicine_instructions,
+        category: medicine_category,
         user: req.user.id,
         scheduleStart: scheduleStart || new Date(),
         scheduleEnd:
@@ -366,7 +372,7 @@ exports.markMedicineAsTaken = async (req, res) => {
       new Date(reminder.time.getTime() + 5 * 60000) < addISTOffset(new Date())
     ) {
       reminder.status = "missed";
-      reminder.missedAt = addISTOffset(new Date())
+      reminder.missedAt = addISTOffset(new Date());
       await reminder.save();
       return res.status(400).json({
         success: false,

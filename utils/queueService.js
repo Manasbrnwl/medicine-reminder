@@ -253,7 +253,7 @@ function formatNotification(reminder) {
   try {
     // Extract medicine names
     const medicineNames = reminder.medicine?.name;
-    const medicineInstructions = reminder.medicine?.instructions;
+    const medicineInstructions = reminder.instructions;
 
     return {
       title: `Medicine Reminder`,
