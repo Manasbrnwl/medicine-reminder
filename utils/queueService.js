@@ -420,6 +420,9 @@ async function scheduleNextRecurrence(reminder) {
     const newReminder = new Reminder({
       medicine: reminder.medicine.id,
       user: reminder.user._id,
+      category: reminder.category,
+      dosage: reminder.dosage,
+      instructions: reminder.instructions,
       scheduleStart: reminder.scheduleStart,
       scheduleEnd: reminder.scheduleEnd,
       frequency: reminder.frequency,
