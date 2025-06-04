@@ -393,7 +393,7 @@ exports.markMedicineAsTaken = async (req, res) => {
     await reminder.save();
 
     // Schedule next occurrence if it's a recurring reminder
-    if (reminder.repeat !== "none" && reminder.scheduleEnd) {
+    if (reminder.repeat !== "none" && reminder.scheduleEnd && new Date(reminder.time) > addISTOffset(new Date())) {
       await scheduleNextRecurrence(reminder);
     }
 
