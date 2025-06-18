@@ -4,6 +4,14 @@ const {
   sendPushNotification
 } = require("../../utils/notifications");
 const { addISTOffset } = require("../default/common");
+const Razorpay = require("razorpay");
+const { validatePaymentVerification }  = require("razorpay/dist/utils/razorpay-utils");
+require("dotenv").config();
+
+const instance = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_SECRET_KEY
+});
 
 // @desc    Get subscription status
 // @route   GET /api/subscription/status
@@ -228,6 +236,46 @@ exports.getSubscriptionTypes = async (req, res) => {
         subscriptionTypes
       }
     });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined
+    });
+  }
+};
+
+exports.createPayment = async (req, res) => {
+  const { amount, currency, receipt } = req.body;
+  const options = {
+    amount: amount,
+    currency: currency,
+    receipt: receipt
+  };
+  try {
+    const order = await instance.orders.create(options);
+    res.json({
+      ...order,
+      key_id: process.env.RAZORPAY_KEY_ID
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined
+    });
+  }
+};
+
+exports.verifyPayment = async (req, res) => {
+  const { order_id, payment_id, signature } = req.body;
+  try {
+    var valid = validatePaymentVerification(
+      { order_id: order_id, payment_id: payment_id },
+      signature,
+      process.env.RAZORPAY_SECRET_KEY
+    );
+    res.status(200).send({ valid: valid });
   } catch (error) {
     res.status(500).json({
       success: false,

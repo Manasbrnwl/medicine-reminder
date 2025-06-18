@@ -3,7 +3,9 @@ const {
   getSubscriptionTypes,
   getSubscriptionStatus,
   upgradeSubscription,
-  cancelSubscription
+  cancelSubscription,
+  createPayment,
+  verifyPayment
 } = require("../controllers/subscriptionController");
 const { protect, checkSubscription } = require("../middleware/auth");
 
@@ -18,5 +20,7 @@ router.get("/", getSubscriptionTypes);
 router.get("/status", getSubscriptionStatus);
 router.post("/upgrade", upgradeSubscription);
 router.post("/cancel", cancelSubscription);
+router.post("/create-payment-order", createPayment);
+router.post("/verify-payment", verifyPayment);
 
 module.exports = router;
