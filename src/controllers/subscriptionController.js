@@ -5,7 +5,9 @@ const {
 } = require("../../utils/notifications");
 const { addISTOffset } = require("../default/common");
 const Razorpay = require("razorpay");
-const { validatePaymentVerification }  = require("razorpay/dist/utils/razorpay-utils");
+const {
+  validatePaymentVerification
+} = require("razorpay/dist/utils/razorpay-utils");
 require("dotenv").config();
 
 const instance = new Razorpay({
@@ -268,13 +270,53 @@ exports.createPayment = async (req, res) => {
 };
 
 exports.verifyPayment = async (req, res) => {
-  const { order_id, payment_id, signature } = req.body;
+  const user = await User.findById(req.user.id);
+  const { order_id, payment_id, signature, month } = req.body;
   try {
     var valid = validatePaymentVerification(
       { order_id: order_id, payment_id: payment_id },
       signature,
       process.env.RAZORPAY_SECRET_KEY
     );
+    if (valid === "true") {
+      if (user.subscription.endDate > addISTOffset(new Date())) {
+        user.subscription.endDate = addISTOffset(
+          new Date(
+            new Date(user.subscription.endDate).setDate(
+              new Date(user.subscription.endDate).getDate() + month * 30
+            )
+          )
+        );
+      } else {
+        user.subscription.status = "premium";
+        user.subscription.startDate = addISTOffset(new Date());
+        user.subscription.endDate = addISTOffset(
+          new Date(new Date().setDate(new Date().getDate() + month * 30))
+        );
+      }
+      user.streakCount = 0;
+      user.streakChange = addISTOffset(new Date());
+      await user.save();
+      // Send confirmation email
+      // await sendEmailNotification(
+      //   user.email,
+      //   "Subscription Upgrade Confirmation",
+      //   "Your subscription has been successfully upgraded to premium.",
+      //   `
+      //     <h1>Subscription Upgrade Confirmation</h1>
+      //     <p>Dear ${user.name},</p>
+      //     <p>Your subscription has been successfully upgraded to premium.</p>
+      //     <p>Your premium subscription will be valid until ${user.subscription.endDate.toLocaleDateString()}.</p>
+      //     <p>Thank you for choosing our service!</p>
+      //   `
+      // );
+      // Send push notification
+      let notification = {
+        title: "Subscription Upgrade Confirmation",
+        body: `Your subscription has been successfully upgraded to premium. Your premium subscription will be valid until ${user.subscription.endDate.toLocaleDateString()}. Thank you for choosing our service!`
+      };
+      sendPushNotification(user.fcmToken, notification);
+    }
     res.status(200).send({ valid: valid });
   } catch (error) {
     res.status(500).json({
