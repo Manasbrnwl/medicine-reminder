@@ -54,7 +54,7 @@ exports.upgradeSubscription = async (req, res) => {
         )
       );
     } else {
-      user.subscription.status = "premium";
+      user.subscription.status = "Premium";
       user.subscription.startDate = addISTOffset(new Date());
       user.subscription.endDate = addISTOffset(
         new Date(new Date().setDate(new Date().getDate() + days))
@@ -106,7 +106,7 @@ exports.cancelSubscription = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
 
-    if (user.subscription.status !== "premium") {
+    if (user.subscription.status !== "Premium") {
       return res.status(400).json({
         success: false,
         message: "No active premium subscription to cancel"
@@ -115,7 +115,7 @@ exports.cancelSubscription = async (req, res) => {
 
     // Update subscription details
     user.subscription.autoRenew = false;
-    user.subscription.status = "free";
+    user.subscription.status = "Free";
     user.subscription.endDate = addISTOffset(
       new Date(new Date().setDate(new Date().getDate() + 30))
     );
@@ -288,7 +288,7 @@ exports.verifyPayment = async (req, res) => {
           )
         );
       } else {
-        user.subscription.status = "premium";
+        user.subscription.status = "Premium";
         user.subscription.startDate = addISTOffset(new Date());
         user.subscription.endDate = addISTOffset(
           new Date(new Date().setDate(new Date().getDate() + month * 30))

@@ -53,8 +53,8 @@ const UserSchema = new mongoose.Schema(
     subscription: {
       status: {
         type: String,
-        enum: ["free", "premium", "expired"],
-        default: "free"
+        enum: ["Free", "Premium", "Expired"],
+        default: "Free"
       },
       startDate: {
         type: Date,
@@ -154,10 +154,11 @@ UserSchema.pre("save", async function (next) {
 
   // Check subscription status
   if (
-    this.subscription.status === "free" &&
+    (this.subscription.status === "Free" ||
+      this.subscription.status === "Premium") &&
     this.subscription.endDate < new Date()
   ) {
-    this.subscription.status = "expired";
+    this.subscription.status = "Expired";
   }
 
   next();
@@ -181,9 +182,9 @@ UserSchema.methods.isOTPExpired = function () {
 // Check if subscription is active
 UserSchema.methods.hasActiveSubscription = function () {
   return (
-    this.subscription.status === "premium" ||
-    (this.subscription.status === "free" &&
-      this.subscription.endDate > new Date())
+    (this.subscription.status === "Premium" ||
+      this.subscription.status === "Free") &&
+    this.subscription.endDate > new Date()
   );
 };
 
