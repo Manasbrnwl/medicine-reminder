@@ -104,7 +104,7 @@ exports.loginUser = async (req, res) => {
         _id: user._id,
         name: user.name,
         email: user.email,
-        phone: user.phone || '',
+        phone: user.phone || "",
         role: user.role,
         parent: user.parent,
         dependents: user.dependents.map((data) => ({
@@ -133,20 +133,29 @@ exports.getUserProfile = async (req, res) => {
   try {
     // req.user comes from the auth middleware
     const user = await User.findById(req.user.id)
-      .populate("dependents", "name email phone")
+      .populate("dependents", "_id name email phone")
       .populate("parent", "name email phone");
-
+    console.log(user.dependents);
     if (user) {
       res.json({
         success: true,
         data: {
           _id: user._id,
           name: user.name,
-          email: user.email || '',
-          phone: user.phone || '',
+          email: user.email || "",
+          phone: user.phone || "",
           role: user.role,
           parent: user.parent,
-          dependents: user.dependents,
+          // dependents: user.dependents,
+          dependents: user.dependents.map((data) => {
+            return {
+              _id: data._id,
+              name: data.name,
+              email: data.email,
+              phone: data.phone || "",
+              id: data._id
+            };
+          }),
           subscription: {
             status: user.subscription.status,
             end: user.subscription.endDate
@@ -528,7 +537,7 @@ exports.loginGoogleUser = async (req, res) => {
         _id: user._id,
         name: user.name,
         email: user.email,
-        phone: user.phone || '',
+        phone: user.phone || "",
         role: user.role,
         parent: user.parent,
         dependents: user.dependents.map((data) => ({
