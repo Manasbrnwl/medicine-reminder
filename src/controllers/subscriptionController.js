@@ -278,8 +278,9 @@ exports.verifyPayment = async (req, res) => {
       signature,
       process.env.RAZORPAY_SECRET_KEY
     );
-    if (valid === "true") {
+    if (valid === true) {
       if (user.subscription.endDate > addISTOffset(new Date())) {
+        user.subscription.status = "Premium";
         user.subscription.endDate = addISTOffset(
           new Date(
             new Date(user.subscription.endDate).setDate(

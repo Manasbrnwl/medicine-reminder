@@ -33,12 +33,13 @@ router.use(protect);
 // router.use(checkSubscription);
 
 // Get all reminders or create new one
-router.route("/").get(getReminders).post(createReminder);
+router.route("/").get(getReminders).post(checkSubscription, createReminder);
 
 // Dashboard routes - placing these BEFORE the /:id routes
 router.get("/dashboard", getDashboardStats);
 router.get(
   "/dashboard/dependent/:dependentId",
+  checkSubscription,
   checkRelationship,
   getDependentDashboardStats
 );
@@ -68,7 +69,7 @@ router
   .delete(deleteReminder);
 
 // Reminder status routes
-router.put("/:id/take", markMedicineAsTaken);
+router.put("/:id/take", checkSubscription, markMedicineAsTaken);
 router.put("/:id/miss", markMedicineAsMissed);
 router.put("/:id/snooze", snoozeReminder);
 

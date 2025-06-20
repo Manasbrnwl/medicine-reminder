@@ -16,19 +16,23 @@ const router = express.Router();
 
 // Protected routes
 router.use(protect);
-router.use(checkSubscription);
 
 // Get all medicines or add new one
 router.route("/").get(getMedicines);
 
 // Get medicines for a dependent
-router.get("/dependent/:dependentId", checkRelationship, getDependentMedicines);
+router.get(
+  "/dependent/:dependentId",
+  checkSubscription,
+  checkRelationship,
+  getDependentMedicines
+);
 
 // Get, update or delete specific medicine
 router
   .route("/:id")
   .get(getMedicine)
-  .put(updateMedicine)
+  .put(checkSubscription, updateMedicine)
   .delete(deleteMedicine);
 
 module.exports = router;
