@@ -13,7 +13,7 @@ const {
   logoutUser,
   loginGoogleUser
 } = require("../controllers/userController");
-const { protect } = require("../middleware/auth");
+const { protect, checkSubscription } = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -29,7 +29,7 @@ router.get("/logout", protect, logoutUser);
 router.get("/profile", protect, getUserProfile);
 router.put("/profile", protect, updateUserProfile);
 router.put("/fcm-token", protect, updateFCMToken);
-router.post("/link-dependent", protect, linkDependent);
+router.post("/link-dependent", protect, checkSubscription, linkDependent);
 router.delete("/unlink-dependent/:dependentId", protect, unlinkDependent);
 router.get("/dependents", protect, getDependents);
 
