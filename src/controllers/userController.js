@@ -111,7 +111,7 @@ exports.loginUser = async (req, res) => {
           _id: data._id,
           name: data.name,
           email: data.email,
-          phone: data.phone
+          phone: data.phone || ""
         })),
         notificationPreferences: user.notificationPreferences,
         token
@@ -146,7 +146,6 @@ exports.getUserProfile = async (req, res) => {
           phone: user.phone || "",
           role: user.role,
           parent: user.parent,
-          // dependents: user.dependents,
           dependents: user.dependents.map((data) => {
             return {
               _id: data._id,
@@ -518,7 +517,7 @@ exports.loginGoogleUser = async (req, res) => {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     const { user_id, email, name } = decodedToken;
 
-    let user = await User.findOne({ firebaseUid: user_id });
+    let user = await User.findOne({ email });
     if (!user) {
       user = await User.create({
         firebaseUid: user_id,
@@ -544,7 +543,7 @@ exports.loginGoogleUser = async (req, res) => {
           _id: data._id,
           name: data.name,
           email: data.email,
-          phone: data.phone
+          phone: data.phone || ""
         })),
         notificationPreferences: user.notificationPreferences,
         token
