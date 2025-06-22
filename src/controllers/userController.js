@@ -422,23 +422,27 @@ exports.verifyOTPAndLogin = async (req, res) => {
       "_id name email phone"
     );
 
+    const token = generateToken(user._id);
+    user.jwtToken = token;
+    user.save();
+
     res.json({
       success: true,
       data: {
         _id: user._id,
         name: user.name,
         email: user.email,
-        phone: user.phone,
+        phone: user.phone || "",
         role: user.role,
         parent: user.parent,
         dependents: user.dependents.map((data) => ({
           _id: data._id,
           name: data.name,
           email: data.email,
-          phone: data.phone
+          phone: data.phone || ""
         })),
         notificationPreferences: user.notificationPreferences,
-        token: generateToken(user._id)
+        token
       }
     });
   } catch (error) {
