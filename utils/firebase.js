@@ -60,7 +60,7 @@ const sendFCMNotification = async (fcmToken, notification) => {
         body: notification.body
       },
       data: notification?.reminderId
-        ? { reminderId: notification.reminderId.toString() }
+        ? { reminderId: notification.reminderId.toString(), type: notification.type }
         : {}
     };
 

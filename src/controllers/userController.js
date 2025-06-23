@@ -135,7 +135,6 @@ exports.getUserProfile = async (req, res) => {
     const user = await User.findById(req.user.id)
       .populate("dependents", "_id name email phone")
       .populate("parent", "name email phone");
-    console.log(user.dependents);
     if (user) {
       res.json({
         success: true,
