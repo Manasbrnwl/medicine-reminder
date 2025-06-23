@@ -60,8 +60,11 @@ const sendFCMNotification = async (fcmToken, notification) => {
         body: notification.body
       },
       data: notification?.reminderId
-        ? { reminderId: notification.reminderId.toString(), type: notification.type }
-        : {}
+        ? {
+            reminderId: notification.reminderId.toString(),
+            type: notification.type
+          }
+        : { type: notification.type }
     };
 
     const response = await admin.messaging().send(message);
