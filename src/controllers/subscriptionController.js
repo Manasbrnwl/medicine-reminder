@@ -79,7 +79,8 @@ exports.upgradeSubscription = async (req, res) => {
     // Send push notification
     let notification = {
       title: "Subscription Upgrade Confirmation",
-      body: `Your subscription has been successfully upgraded to premium. Your premium subscription will be valid until ${user.subscription.endDate.toLocaleDateString()}. Thank you for choosing our service!`
+      body: `Your subscription has been successfully upgraded to premium. Your premium subscription will be valid until ${user.subscription.endDate.toLocaleDateString()}. Thank you for choosing our service!`,
+      type: "subscription"
     };
     sendPushNotification(user.fcmToken, notification);
 
@@ -272,6 +273,7 @@ exports.createPayment = async (req, res) => {
 exports.verifyPayment = async (req, res) => {
   const user = await User.findById(req.user.id);
   const { order_id, payment_id, signature, month } = req.body;
+  let notification;
   try {
     var valid = validatePaymentVerification(
       { order_id: order_id, payment_id: payment_id },
@@ -288,12 +290,22 @@ exports.verifyPayment = async (req, res) => {
             )
           )
         );
+        notification = {
+          title: "Subscription Upgrade Confirmation",
+          body: `Your subscription has been extended successfully. Thank you for choosing our service!`,
+          type: "subscription"
+        };
       } else {
         user.subscription.status = "Premium";
         user.subscription.startDate = addISTOffset(new Date());
         user.subscription.endDate = addISTOffset(
           new Date(new Date().setDate(new Date().getDate() + month * 30))
         );
+        notification = {
+          title: "Subscription Upgrade Confirmation",
+          body: `Your subscription has been successfully upgraded to premium. Thank you for choosing our service!`,
+          type: "subscription"
+        };
       }
       user.streakCount = 0;
       user.streakChange = addISTOffset(new Date());
@@ -312,10 +324,6 @@ exports.verifyPayment = async (req, res) => {
       //   `
       // );
       // Send push notification
-      let notification = {
-        title: "Subscription Upgrade Confirmation",
-        body: `Your subscription has been successfully upgraded to premium. Your premium subscription will be valid until ${user.subscription.endDate.toLocaleDateString()}. Thank you for choosing our service!`
-      };
       sendPushNotification(user.fcmToken, notification);
     }
     res.status(200).send({ valid: valid });
