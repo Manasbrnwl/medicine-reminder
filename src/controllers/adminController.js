@@ -27,8 +27,8 @@ exports.deleteUser = async (req, res) => {
 exports.paymentDetails = async (req, res) => {
   try {
     const payment = await Payment.find()
-      .populate("user")
-      .select("id user.email user.name amount plan createdAt");
+      .populate("user", "email name")
+      .select("amount plan createdAt");
     if (!payment) {
       return res.status(404).json({ message: "Payment not found" });
     }
