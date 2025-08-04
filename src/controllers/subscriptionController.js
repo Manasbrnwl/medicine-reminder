@@ -8,6 +8,7 @@ const Razorpay = require("razorpay");
 const {
   validatePaymentVerification
 } = require("razorpay/dist/utils/razorpay-utils");
+const Payment = require("../models/Payment");
 require("dotenv").config();
 
 const instance = new Razorpay({
@@ -257,6 +258,10 @@ exports.createPayment = async (req, res) => {
   };
   try {
     const order = await instance.orders.create(options);
+    const payment = await Payment.create({
+      user: req.user.id,
+      amount: amount
+    });
     res.json({
       ...order,
       key_id: process.env.RAZORPAY_KEY_ID
@@ -281,6 +286,10 @@ exports.verifyPayment = async (req, res) => {
       process.env.RAZORPAY_SECRET_KEY
     );
     if (valid === true) {
+      const payment = Payment.updateOne(
+        { user: req.user.id },
+        { $set: { plan: `${month} ${month > 1 ? "Months" : "Month"} Plan` } }
+      );
       if (user.subscription.endDate > addISTOffset(new Date())) {
         user.subscription.status = "Premium";
         user.subscription.endDate = addISTOffset(
