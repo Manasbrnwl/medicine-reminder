@@ -393,7 +393,11 @@ exports.markMedicineAsTaken = async (req, res) => {
     await reminder.save();
 
     // Schedule next occurrence if it's a recurring reminder
-    if (reminder.repeat !== "none" && reminder.scheduleEnd && new Date(reminder.time) > addISTOffset(new Date())) {
+    if (
+      reminder.repeat !== "none" &&
+      reminder.scheduleEnd &&
+      new Date(reminder.time) > addISTOffset(new Date())
+    ) {
       await scheduleNextRecurrence(reminder);
     }
 
@@ -1026,7 +1030,7 @@ exports.removeDuplicateReminders = async (req, res, is_function) => {
       });
     }
     if (is_function) {
-      return console.log("Duplicate reminders removed successfully");
+      return; // console.log("Duplicate reminders removed successfully");
     } else {
       res.status(201).json({
         success: true,

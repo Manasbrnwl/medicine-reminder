@@ -30,7 +30,6 @@ router.delete("/delete-duplicates", removeDuplicateReminders);
 
 // Protected routes
 router.use(protect);
-// router.use(checkSubscription);
 
 // Get all reminders or create new one
 router.route("/").get(getReminders).post(checkSubscription, createReminder);

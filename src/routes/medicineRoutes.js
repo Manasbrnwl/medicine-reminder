@@ -21,12 +21,7 @@ router.use(protect);
 router.route("/").get(getMedicines);
 
 // Get medicines for a dependent
-router.get(
-  "/dependent/:dependentId",
-  checkSubscription,
-  checkRelationship,
-  getDependentMedicines
-);
+router.get("/dependent/:dependentId", checkSubscription, checkRelationship, getDependentMedicines);
 
 // Get, update or delete specific medicine
 router

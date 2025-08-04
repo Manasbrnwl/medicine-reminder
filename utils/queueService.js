@@ -150,10 +150,7 @@ missedDoseQueue.process(async (job) => {
       const notification = {
         title: "Missed Dose Alert",
         body: `You have automatically missed your dose of ${reminder.medicine?.name}`,
-        data: {
-          reminderId: reminder._id.toString(),
-          type: "missed_dose"
-        }
+        type: "missed"
       };
 
       // Send push notification to user
@@ -258,14 +255,16 @@ function formatNotification(reminder) {
     return {
       title: `Medicine Reminder`,
       body: `It's time to take - ${medicineNames} : ${medicineInstructions}`,
-      reminderId: reminder._id.toString()
+      reminderId: reminder._id.toString(),
+      type: "reminder"
     };
   } catch (error) {
     logger.error(`Error formatting notification: ${error.message}`);
     return {
       title: "Medicine Reminder",
       body: "It's time to take your medication",
-      reminderId: reminder._id.toString()
+      reminderId: reminder._id.toString(),
+      type: "reminder"
     };
   }
 }
@@ -363,10 +362,7 @@ async function notifyParent(reminder) {
     const notificationToParent = {
       title: "Missed Dose Alert",
       body: `${reminder?.user?.name} has ${isAutomatic}missed their dose of ${medicineNames}`,
-      data: {
-        reminderId: reminder._id.toString(),
-        type: "missed_dose"
-      }
+      type: "missed"
     };
 
     // Send push notification to parent
