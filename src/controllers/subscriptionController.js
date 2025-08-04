@@ -260,7 +260,7 @@ exports.createPayment = async (req, res) => {
     const order = await instance.orders.create(options);
     const payment = await Payment.create({
       user: req.user.id,
-      amount: amount
+      amount: amount / 100
     });
     res.json({
       ...order,

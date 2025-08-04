@@ -13,8 +13,7 @@ const PaymentSchema = new mongoose.Schema(
     },
     plan: {
       type: String,
-      required: false,
-      default: "Basic"
+      required: false
     },
     createdAt: {
       type: Date,
