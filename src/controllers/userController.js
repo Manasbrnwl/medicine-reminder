@@ -507,6 +507,9 @@ exports.logoutUser = async (req, res) => {
   res.json({ message: "Logout successful" });
 };
 
+// @desc    Login user with Google or Apple
+// @route   POST /api/users/login/google
+// @access  
 exports.loginGoogleUser = async (req, res) => {
   try {
     const { fcmToken, idToken } = req.body;
@@ -560,3 +563,18 @@ exports.loginGoogleUser = async (req, res) => {
     });
   }
 };
+
+// @desc    delete user
+// @route   DELETE /api/users
+// @access  Private
+exports.deleteUser = async (req, res) => {
+  try {
+    const user = await User.findByIdAndDelete(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json({ message: "User deleted successfully" });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}

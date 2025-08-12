@@ -11,7 +11,8 @@ const {
   requestOTP,
   updateFCMToken,
   logoutUser,
-  loginGoogleUser
+  loginGoogleUser,
+  deleteUser
 } = require("../controllers/userController");
 const { protect, checkSubscription } = require("../middleware/auth");
 
@@ -32,5 +33,7 @@ router.put("/fcm-token", protect, updateFCMToken);
 router.post("/link-dependent", protect, checkSubscription, linkDependent);
 router.delete("/unlink-dependent/:dependentId", protect, unlinkDependent);
 router.get("/dependents", protect, getDependents);
+router.delete("/", protect, deleteUser);
+
 
 module.exports = router;
