@@ -593,13 +593,23 @@ exports.deleteUser = async (req, res) => {
 //@access  Public
 exports.forgotPassword = async (req, res) => {
   try {
-    const { userId, password } = req.body;
+    const { userId, password, otp } = req.body;
     if (!userId) {
-      return res.status(400).json({ message: "Email is required" });
+      return res.status(400).json({ message: "Not A Valid User" });
+    }
+    if (!otp) {
+      return res.status(400).json({ message: "OTP is required" });
     }
     const user = await User.findOne({ _id: userId });
     if (!user) {
       return res.status(404).json({ message: "User not found" });
+    }  
+    const result = await verifyOTP(userId, otp);
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        message: result.message
+      });
     }
     user.password = password;
     await user.save();
