@@ -12,7 +12,8 @@ const {
   updateFCMToken,
   logoutUser,
   loginGoogleUser,
-  deleteUser
+  deleteUser,
+  forgotPassword
 } = require("../controllers/userController");
 const { protect, checkSubscription } = require("../middleware/auth");
 
@@ -24,9 +25,11 @@ router.post("/login", loginUser);
 router.post("/login/google", loginGoogleUser);
 router.post("/request-otp", requestOTP);
 router.post("/verify-otp", verifyOTPAndLogin);
-router.get("/logout", protect, logoutUser);
+router.post("/forgot-password", forgotPassword);
+
 
 // Protected routes
+router.get("/logout", protect, logoutUser);
 router.get("/profile", protect, getUserProfile);
 router.put("/profile", protect, updateUserProfile);
 router.put("/fcm-token", protect, updateFCMToken);

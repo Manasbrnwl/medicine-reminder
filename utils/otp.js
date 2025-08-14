@@ -28,7 +28,11 @@ const calculateOTPExpiry = () => {
  * @param {boolean} isEmail - Whether the identifier is an email
  * @returns {Promise<object>} Result with status and user
  */
-exports.generateAndSaveOTP = async (identifier, isEmail = true) => {
+exports.generateAndSaveOTP = async (
+  identifier,
+  isEmail = true,
+  isLogin = true
+) => {
   try {
     let user;
 
@@ -59,9 +63,13 @@ exports.generateAndSaveOTP = async (identifier, isEmail = true) => {
     if (isEmail) {
       sent = sendEmailNotification(
         user.email,
-        "Medicine Reminder App - Login OTP",
-        `Your OTP for login is: ${plainOTP}. It will expire in 10 minutes.`,
-        `<h1>Login OTP</h1><p>Your OTP for login is: <strong>${plainOTP}</strong></p><p>It will expire in 10 minutes.</p>`
+        `Medicine Reminder App - ${isLogin ? "Login" : "Password Reset"} OTP`,
+        `Your OTP for ${
+          isLogin ? "login" : "password reset"
+        } is: ${plainOTP}. It will expire in 10 minutes.`,
+        `<h1>${isLogin ? "Login" : "Password Reset"} OTP</h1><p>Your OTP for ${
+          isLogin ? "login" : "password reset"
+        } is: <strong>${plainOTP}</strong></p><p>It will expire in 10 minutes.</p>`
       )
         .then((res) => res)
         .catch(() => false);

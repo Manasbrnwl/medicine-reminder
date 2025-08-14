@@ -355,7 +355,8 @@ exports.getDependents = async (req, res) => {
 // @access  Public
 exports.requestOTP = async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, isLogin } = req.body;
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     let result;
     if (!email) {
@@ -365,9 +366,17 @@ exports.requestOTP = async (req, res) => {
       });
     }
     if (emailRegex.test(email)) {
-      result = await generateAndSaveOTP(email, true);
+      result = await generateAndSaveOTP(
+        email,
+        true,
+        isLogin == 0 ? true : false
+      );
     } else {
-      result = await generateAndSaveOTP(email, false);
+      result = await generateAndSaveOTP(
+        email,
+        false,
+        isLogin == 0 ? true : false
+      );
     }
 
     if (!result.success) {
@@ -509,7 +518,7 @@ exports.logoutUser = async (req, res) => {
 
 // @desc    Login user with Google or Apple
 // @route   POST /api/users/login/google
-// @access  
+// @access
 exports.loginGoogleUser = async (req, res) => {
   try {
     const { fcmToken, idToken } = req.body;
@@ -577,4 +586,43 @@ exports.deleteUser = async (req, res) => {
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
-}
+};
+
+//@desc    Forgot password
+//@route   POST /api/users/forgot-password
+//@access  Public
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { userId, password } = req.body;
+    if (!userId) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+    const user = await User.findOne({ _id: userId });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    user.password = password;
+    await user.save();
+    res.json({
+      success: true,
+      data: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone || "",
+        role: user.role,
+        parent: user.parent,
+        dependents: user.dependents.map((data) => ({
+          _id: data._id,
+          name: data.name,
+          email: data.email,
+          phone: data.phone || ""
+        })),
+        notificationPreferences: user.notificationPreferences,
+        token
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
