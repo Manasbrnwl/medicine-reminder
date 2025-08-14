@@ -593,7 +593,7 @@ exports.deleteUser = async (req, res) => {
 //@access  Public
 exports.forgotPassword = async (req, res) => {
   try {
-    const { userId, password, otp } = req.body;
+    const { userId, password, otp, fcmToken } = req.body;
     if (!userId) {
       return res.status(400).json({ message: "Not A Valid User" });
     }
@@ -612,6 +612,9 @@ exports.forgotPassword = async (req, res) => {
       });
     }
     user.password = password;
+    const token = generateToken(user._id);
+    user.jwtToken = token;
+    user.fcmToken = fcmToken;
     await user.save();
     res.json({
       success: true,
