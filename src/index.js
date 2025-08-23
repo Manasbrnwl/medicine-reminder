@@ -60,6 +60,9 @@ app.get("/", (req, res) => {
 app.get("/remote", (req, res) => {
   return res.json(process.env.REMOTE);
 });
+app.get("/subscription", (req, res) => {
+  return res.json(process.env.SUBSCRIPTION_FLAG);
+});
 app.use("/api/users", require("./routes/userRoutes"));
 app.use("/api/medicines", require("./routes/medicineRoutes"));
 app.use("/api/reminders", require("./routes/reminderRoutes"));

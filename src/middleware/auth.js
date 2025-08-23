@@ -59,20 +59,24 @@ exports.authorize = (...roles) => {
 // Check subscription status
 exports.checkSubscription = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id);
+    if (process.env.SUBSCRIPTION_FLAG == true) {
+      const user = await User.findById(req.user.id);
 
-    if (!user.hasActiveSubscription()) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "Your subscription has expired. Please upgrade to continue using the service.",
-        data: {
-          subscription: user.subscription
-        }
-      });
+      if (!user.hasActiveSubscription()) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Your subscription has expired. Please upgrade to continue using the service.",
+          data: {
+            subscription: user.subscription
+          }
+        });
+      }
+
+      next();
+    } else {
+      next();
     }
-
-    next();
   } catch (err) {
     return res.status(500).json({
       success: false,
